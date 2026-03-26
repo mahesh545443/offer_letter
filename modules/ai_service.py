@@ -131,6 +131,29 @@ Return JSON:
             raw = response.choices[0].message.content.strip()
             raw = re.sub(r"```json|```", "", raw).strip()
             result = json.loads(raw)
+
+            # ── Rule-based overrides (never trust LLM alone for binary flags) ──
+            p_lower = prompt_text.lower()
+
+            # PF: if user clearly said no PF, force it — Groq often ignores this
+            NO_PF_PATTERNS = [
+                "no pf", "pf no", "without pf", "pf opted out",
+                "opt out pf", "pf opt out", "pf 0", "0% pf",
+                "no provident", "without provident", "pf not applicable",
+                "pf waived", "no epf", "without epf",
+            ]
+            if any(pat in p_lower for pat in NO_PF_PATTERNS):
+                result["pf_percent"] = 0
+
+            # Variable: if user clearly said no variable/bonus, force 0
+            NO_VAR_PATTERNS = [
+                "no variable", "no bonus", "no incentive",
+                "without variable", "without bonus", "0% variable",
+                "variable 0", "fixed only", "no performance pay",
+            ]
+            if any(pat in p_lower for pat in NO_VAR_PATTERNS):
+                result["variable_percent"] = 0
+
             return _validate_salary_params(result)
         except Exception as e:
             print(f"Groq salary parse error: {e}")
