@@ -178,7 +178,8 @@ def _validate_salary_params(params: dict) -> dict:
     # ── Percentages ──────────────────────────────────────────────────────────
     # If any value is > 100 the LLM returned an absolute amount — use default instead.
     def _safe_pct(key, default, lo, hi):
-        val = float(params.get(key, default) or default)
+        raw = params.get(key, default)
+        val = float(raw if raw is not None else default)  # FIX: 0 is valid, not falsy
         if val < lo or val > hi:
             return float(default)
         return val
