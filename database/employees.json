@@ -1,0 +1,165 @@
+{
+  "candidates": [
+    {
+      "id": 1,
+      "name": "Subashini C R",
+      "salutation": "Ms.",
+      "role": "Data Analytics Trainee",
+      "department": "Analytics",
+      "joining_date": "03-04-2026",
+      "email": "subashini@example.com",
+      "phone": ""
+    },
+    {
+      "id": 2,
+      "name": "Harini",
+      "salutation": "Ms.",
+      "role": "Data Analytics Trainee",
+      "department": "Analytics",
+      "joining_date": "01-03-2026",
+      "email": "harini@example.com",
+      "phone": ""
+    },
+    {
+      "name": "mahesh",
+      "salutation": "Mr.",
+      "role": "Data Analytics Trainee",
+      "department": "Analytics",
+      "joining_date": "23-03-2026",
+      "email": "",
+      "phone": "",
+      "id": 3
+    },
+    {
+      "name": "Mahesh",
+      "salutation": "Mr.",
+      "role": "Data Analyst",
+      "department": "Analytics",
+      "joining_date": "25-03-2026",
+      "email": "",
+      "phone": "",
+      "id": 4
+    },
+    {
+      "name": "Mahesh RGM",
+      "salutation": "Mr.",
+      "role": "Data Analyst",
+      "department": "Analytics",
+      "joining_date": "25-03-2026",
+      "email": "",
+      "phone": "",
+      "id": 5
+    },
+    {
+      "name": "aswath",
+      "salutation": "Mr.",
+      "role": "Data Analytics Trainee",
+      "department": "Analytics",
+      "joining_date": "24-03-2026",
+      "email": "",
+      "phone": "",
+      "id": 6
+    }
+  ],
+  "interns": [
+    {
+      "id": 1,
+      "name": "G. Vaishali",
+      "salutation": "Ms.",
+      "reg_no": "2301721096108",
+      "college": "Department of Business Administration",
+      "department": "HR",
+      "role": "Talent Acquisition & HR Intern",
+      "start_date": "16-02-2026",
+      "end_date": "13-03-2026",
+      "duration": "one month",
+      "responsibilities": [
+        "Candidate sourcing and screening coordination",
+        "Interview scheduling and recruitment follow-ups",
+        "HR support activities",
+        "Talent Acquisition process management"
+      ],
+      "email": "vaishali@example.com"
+    },
+    {
+      "id": 2,
+      "name": "Sukumaran",
+      "salutation": "Mr.",
+      "reg_no": "",
+      "college": "",
+      "department": "Analytics",
+      "role": "Data Analytics Intern",
+      "start_date": "01-07-2025",
+      "end_date": "30-11-2025",
+      "duration": "five months",
+      "responsibilities": [
+        "E-Commerce and Inventory Analytics",
+        "Seller Engagement and Platform Analytics",
+        "Marketing and Campaign Analytics",
+        "Inventory scarcity analysis using Python, SQL, and Power BI",
+        "Seller engagement funnel insights",
+        "Marketing campaign performance optimization"
+      ],
+      "email": "sukumaran@example.com"
+    },
+    {
+      "name": "mahesh",
+      "salutation": "Mr.",
+      "reg_no": "123",
+      "college": "sathyabama",
+      "department": "Engineering",
+      "role": "Data Analyst",
+      "start_date": "23-03-2026",
+      "end_date": "23-03-2026",
+      "duration": "",
+      "responsibilities": [
+        "Data analysis and visualization using Python, SQL, and Power BI",
+        "Building and maintaining analytical dashboards",
+        "Generating insights from large datasets",
+        "Preparing analytical reports for management",
+        "Collaborating with cross-functional teams on data projects"
+      ],
+      "email": "",
+      "id": 3
+    },
+    {
+      "name": "Mahesh",
+      "salutation": "Mr.",
+      "reg_no": "12345",
+      "college": "Sathyabama university",
+      "department": "Engineering",
+      "role": "Data Analyst",
+      "start_date": "23-02-2026",
+      "end_date": "30-03-2026",
+      "duration": "one month",
+      "responsibilities": [
+        "Data analysis and visualization using Python, SQL, and Power BI",
+        "Building and maintaining analytical dashboards",
+        "Generating insights from large datasets",
+        "Preparing analytical reports for management",
+        "Collaborating with cross-functional teams on data projects"
+      ],
+      "email": "",
+      "id": 4
+    }
+  ],
+  "roles": [
+    "Data Analytics Trainee",
+    "Business Analyst",
+    "Data Analyst",
+    "Software Developer",
+    "HR Executive",
+    "Talent Acquisition Intern",
+    "Data Analytics Intern",
+    "Marketing Intern",
+    "Business Development Intern"
+  ],
+  "departments": [
+    "Analytics",
+    "HR",
+    "Engineering",
+    "Marketing",
+    "Business Development",
+    "Operations"
+  ]
+}

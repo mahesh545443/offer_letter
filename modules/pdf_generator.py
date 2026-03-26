@@ -1,0 +1,591 @@
+"""
+pdf_generator.py
+Fixes: bold via registerFontFamily, no extra blank pages, internship single page.
+Analytics Avenue LLP
+"""
+
+import os
+from docxtpl import DocxTemplate
+from datetime import datetime
+
+TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "../templates")
+OUTPUT_DIR    = os.path.join(os.path.dirname(__file__), "../output")
+ASSETS_DIR    = os.path.join(os.path.dirname(__file__), "../assets")
+
+
+def ensure_output_dir():
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+
+def render_docx(template_name, context, output_filename):
+    ensure_output_dir()
+    template_path = os.path.join(TEMPLATES_DIR, template_name)
+    if not os.path.exists(template_path):
+        raise FileNotFoundError(f"Template not found: {template_path}")
+    doc = DocxTemplate(template_path)
+    doc.render(context)
+    docx_path = os.path.join(OUTPUT_DIR, f"{output_filename}.docx")
+    doc.save(docx_path)
+    return docx_path
+
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm, mm
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+from reportlab.lib import colors
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Image,
+    Table, TableStyle, PageBreak, HRFlowable
+)
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase.pdfmetrics import registerFontFamily
+from reportlab.pdfgen import canvas
+
+
+# ── Register fonts WITH bold family so <b> tags work ─────────
+def _register_fonts():
+    candidates = [
+        (
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf',
+        ),
+        (
+            'C:/Windows/Fonts/arial.ttf',
+            'C:/Windows/Fonts/arialbd.ttf',
+            'C:/Windows/Fonts/ariali.ttf',
+            'C:/Windows/Fonts/arialbi.ttf',
+        ),
+    ]
+    for reg, bold, ital, boldi in candidates:
+        if os.path.exists(reg) and os.path.exists(bold):
+            try:
+                pdfmetrics.registerFont(TTFont('HR',   reg))
+                pdfmetrics.registerFont(TTFont('HR-B', bold))
+                if os.path.exists(ital):
+                    pdfmetrics.registerFont(TTFont('HR-I', ital))
+                else:
+                    pdfmetrics.registerFont(TTFont('HR-I', reg))
+                if os.path.exists(boldi):
+                    pdfmetrics.registerFont(TTFont('HR-BI', boldi))
+                else:
+                    pdfmetrics.registerFont(TTFont('HR-BI', bold))
+                # THIS is the key — makes <b> tags work
+                registerFontFamily('HR', normal='HR', bold='HR-B', italic='HR-I', boldItalic='HR-BI')
+                return 'HR', 'HR-B'
+            except Exception:
+                continue
+    # Helvetica has built-in bold family — <b> tags work natively
+    return 'Helvetica', 'Helvetica-Bold'
+
+
+FR, FB = _register_fonts()
+
+BLACK      = colors.black
+WHITE      = colors.white
+GRAY       = colors.HexColor("#555555")
+LIGHT_GRAY = colors.HexColor("#f5f5f5")
+TABLE_HEAD = colors.HexColor("#1F5C99")
+TABLE_ALT  = colors.HexColor("#E8F0FE")
+BORDER_CLR = colors.HexColor("#2E74B5")
+
+PAGE_W, PAGE_H = A4
+LM = 2.0*cm; RM = 2.0*cm; TM = 1.2*cm; BM = 2.0*cm
+CW = PAGE_W - LM - RM
+
+
+# ── Border at page edge ───────────────────────────────────────
+class BC(canvas.Canvas):
+    def showPage(self):
+        # Draw border on current page BEFORE moving to next
+        self.saveState()
+        self.setStrokeColor(BORDER_CLR)
+        self.setLineWidth(2)
+        m = 3
+        self.rect(m, m, PAGE_W - 2*m, PAGE_H - 2*m, stroke=1, fill=0)
+        self.restoreState()
+        super().showPage()
+
+    def save(self):
+        # Do NOT draw border here — showPage() already handled all pages
+        super().save()
+
+
+class BDT(SimpleDocTemplate):
+    def build(self, flowables, **kw):
+        kw['canvasmaker'] = BC
+        super().build(flowables, **kw)
+
+
+# ── Styles — use FR so <b> tags resolve to HR-B ──────────────
+def S():
+    s = getSampleStyleSheet()
+    def add(n, **kw):
+        if n not in s:
+            s.add(ParagraphStyle(name=n, **kw))
+    add("B",   fontName=FR, fontSize=10.5, leading=16, textColor=BLACK, alignment=TA_JUSTIFY, spaceAfter=8)
+    add("SH",  fontName=FB, fontSize=11,   leading=16, textColor=BLACK, spaceBefore=8, spaceAfter=4)
+    add("TIT", fontName=FB, fontSize=14,   leading=18, textColor=BLACK, alignment=TA_CENTER, spaceAfter=10)
+    add("SUB", fontName=FB, fontSize=12,   leading=16, textColor=BLACK, alignment=TA_CENTER, spaceAfter=8)
+    add("BUL", fontName=FR, fontSize=10.5, leading=15, textColor=BLACK, leftIndent=14, spaceAfter=3)
+    add("SUL", fontName=FR, fontSize=10.5, leading=15, textColor=BLACK, leftIndent=28, spaceAfter=2)
+    add("SGN", fontName=FB, fontSize=10.5, leading=14, textColor=BLACK, spaceAfter=2)
+    add("ITA", fontName=FR, fontSize=10.5, leading=14, textColor=GRAY,  spaceAfter=2)
+    return s
+
+
+def _lh():
+    for p in [
+        os.path.join(ASSETS_DIR, "letterhead_final.png"),
+        os.path.join(ASSETS_DIR, "letterhead.png"),
+    ]:
+        if os.path.exists(p):
+            # Slightly smaller height to save space
+            img = Image(p, width=CW, height=CW*(480/2482))
+            img.hAlign = "LEFT"
+            return img
+    return None
+
+
+def _sig():
+    for p in [
+        os.path.join(ASSETS_DIR, "signature_final.png"),
+        os.path.join(ASSETS_DIR, "signature.png"),
+    ]:
+        if os.path.exists(p):
+            img = Image(p, width=3.2*cm, height=1.5*cm)
+            img.hAlign = "LEFT"
+            return img
+    return None
+
+
+def _hdr(title, compact=False):
+    s = S()
+    items = []
+    lh = _lh()
+    if lh:
+        if compact:
+            from reportlab.platypus import Image as Img
+            for p in [
+                os.path.join(ASSETS_DIR, "letterhead_final.png"),
+                os.path.join(ASSETS_DIR, "letterhead.png"),
+            ]:
+                if os.path.exists(p):
+                    img = Img(p, width=CW, height=CW*(500/2482))
+                    img.hAlign = "LEFT"
+                    items.append(img)
+                    break
+        else:
+            items.append(lh)
+    else:
+        items.append(Paragraph(
+            '<font color="#064b86" size="16"><b>Analytics Avenue LLP</b></font>',
+            s["B"]
+        ))
+    items.append(Spacer(1, 2*mm))
+    items.append(Paragraph(title, s["TIT"]))
+    items.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
+    items.append(Spacer(1, 3*mm))
+    return items
+
+
+def _bul(text, s):
+    return Paragraph(f"\u2022 {text}", s["BUL"])
+
+
+def _sub(l, t, s):
+    return Paragraph(f"{l}. {t}", s["SUL"])
+
+
+def _pronoun(salutation):
+    if salutation in ["Mr."]:
+        return {"sub": "he", "obj": "him", "pos": "his", "cap": "His"}
+    return {"sub": "she", "obj": "her", "pos": "her", "cap": "Her"}
+
+
+def _sig_block(s, company="Analytics Avenue", compact=False):
+    items = []
+    sig = _sig()
+    if sig:
+        if compact:
+            from reportlab.platypus import Image as Img
+            for p in [
+                os.path.join(ASSETS_DIR, "signature_final.png"),
+                os.path.join(ASSETS_DIR, "signature.png"),
+            ]:
+                if os.path.exists(p):
+                    img = Img(p, width=2.8*cm, height=1.3*cm)
+                    img.hAlign = "LEFT"
+                    items.append(img)
+                    break
+        else:
+            items.append(sig)
+    items += [
+        Paragraph("<b>For ANALYTICS AVENUE LLP</b>", s["SGN"]),
+        Spacer(1, 2*mm if compact else 3*mm),
+        Paragraph("<b>Regards,</b>",       s["SGN"]),
+        Paragraph("<b>Aswath R</b>",       s["SGN"]),
+        Paragraph("<b>Human Resource</b>", s["SGN"]),
+        Paragraph(f"<b>{company}</b>",     s["SGN"]),
+        Paragraph(
+            "<i>(Empower your business with data driven insights)</i>",
+            s["ITA"]
+        ),
+    ]
+    return items
+
+
+def _doc(pdf_path, compact=False):
+    tm = 0.6*cm if compact else TM
+    bm = 1.5*cm if compact else BM
+    return BDT(
+        pdf_path, pagesize=A4,
+        leftMargin=LM, rightMargin=RM,
+        topMargin=tm, bottomMargin=bm
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# PRE-OFFER LETTER — 3 pages exactly, no extra
+# ─────────────────────────────────────────────────────────────
+def _pre_offer_pdf(ctx, pdf_path):
+    s   = S()
+    sal = ctx.get("salutation", "Ms.")
+    nm  = ctx.get("candidate_name", "")
+    rol = ctx.get("role", "")
+    doj = ctx.get("joining_date", "")
+    stipend   = ctx.get("stipend", "₹10,000")
+    incentive = ctx.get("incentive", "₹15,000")
+    p   = _pronoun(sal)
+
+    doc = _doc(pdf_path)
+    st  = []
+
+    # PAGE 1
+    st += _hdr("Pre-Offer Letter")
+    st.append(Paragraph(
+        f'This is to formally acknowledge that <b>{sal} {nm}</b> has been engaged with '
+        f'<b>Analytics Avenue LLP</b> in the role of <b>{rol}</b>', s["B"]))
+    st.append(Paragraph(
+        f'The actual engagement shall commence with a <b>probationary period ranging from '
+        f'two to four months</b>, <b>effective from {doj}, the date of joining.</b>', s["B"]))
+    st.append(Spacer(1, 3*mm))
+    st.append(Paragraph("<b>Compensation During Probation</b>", s["SH"]))
+    st.append(Paragraph(
+        "During the probation period, data analytics trainee will be entitled to the "
+        "following compensation:", s["B"]))
+    st.append(_bul(f"<b>Fixed Stipend / Base Pay: {stipend} per month</b>", s))
+    st.append(_bul(
+        f"<b>Performance-Based Incentive:</b> Up to <b>{incentive} per month</b>, subject "
+        "to the successful <b>achievement of assigned targets</b> and <b>performance "
+        "benchmarks</b> as defined by the organization.", s))
+    st.append(_bul(
+        "The performance incentive is variable in nature and will be evaluated based on "
+        "internal performance review mechanisms.", s))
+    st.append(Spacer(1, 3*mm))
+    st.append(Paragraph("<b>Confirmation, Promotion &amp; Post-Confirmation Compensation</b>", s["SH"]))
+    st.append(Paragraph(
+        f'Upon <b>successful completion of the probation period</b> and meeting the prescribed '
+        f'performance expectations, <b>{p["sub"]}</b> will be considered for role confirmation '
+        f'with an annual compensation structure (CTC) within the range of '
+        f'<b>\u20b94 LPA to \u20b96 LPA</b>, comprising:', s["B"]))
+    st.append(_bul("Base Pay", s))
+    st.append(_bul("Variable / Performance-Based Pay", s))
+    st.append(_bul(
+        "Applicable Statutory Benefits, including gratuity, as per prevailing laws "
+        "and company policy", s))
+
+    # PAGE 2
+    st.append(PageBreak())
+    st += _hdr("Points to Be Noted")
+    st.append(Paragraph(
+        "<b>1. Promotion &amp; Salary Revision:</b> Employees who meet performance "
+        "expectations and achieve assigned targets in business development and technical "
+        "proof-of-concepts (POCs) will be eligible for promotion and a suitable salary hike, "
+        "as per management discretion. The official salary revision happens during "
+        "September–October and April–May. Upon successful completion of the Data Analytics "
+        "Trainee role the employee will be promoted to the role of <b>Business Analyst.</b>", s["B"]))
+    st.append(Paragraph(
+        "<b>2. Training-Cum-Service Bond:</b> As per the terms of employment, the employee "
+        "is required to execute a Training-cum-Service Bond committing to serve the company "
+        "for 12 (twelve) months from the date of joining. If the employee voluntarily resigns "
+        "or abandons employment before completing this period, they agree to reimburse a "
+        "proportionate training cost of up to <b>\u20b91,00,000</b> (Rupees One Lakh only).", s["B"]))
+    st.append(Paragraph(
+        "<b>3. Roles &amp; Responsibilities:</b> During the tenure, the employee is expected "
+        "to actively participate in:", s["B"]))
+    st.append(_sub("a", "End-to-end business development activities", s))
+    st.append(_sub("b", "Client engagement and lead generation", s))
+    st.append(_sub("c", "Follow-ups and achievement of assigned targets", s))
+    st.append(_sub("d", "Preparation of reports and dashboards", s))
+    st.append(_sub("e", "Completion of mandatory technical and professional training programs", s))
+    st.append(Paragraph(
+        "<b>4. Performance Management:</b> Repeated performance escalations (more than five "
+        "(5)) may lead to proportionate salary deductions of <b>\u20b91,000</b> per instance.", s["B"]))
+    st.append(Paragraph(
+        "<b>5. Working Hours &amp; Shifts:</b> The employee should be willing to work in any "
+        "shifts and on weekends, if required, based on business needs.", s["B"]))
+
+    # PAGE 3
+    st.append(PageBreak())
+    st += _hdr("Points to Be Noted")
+    st.append(Paragraph(
+        "<b>Notice Period:</b> The company's official notice period is 90 days. Failure to "
+        "serve the full notice period may result in the employee being marked as terminated "
+        "in company.", s["B"]))
+    st.append(Spacer(1, 10*mm))
+    st += _sig_block(s, "Analytics Avenue")
+    st.append(Spacer(1, 6*mm))
+    st.append(Paragraph("<b>Acceptance of Offer:</b>", s["SGN"]))
+    st.append(Paragraph(
+        f"I, _____________________ accept the position of <b>{rol}</b> at Analytics Avenue "
+        "under the terms and conditions outlined in this offer letter and the document attached.",
+        s["B"]))
+    st.append(Spacer(1, 6*mm))
+    st.append(Paragraph("<b>Signature:</b>", s["SGN"]))
+    st.append(Spacer(1, 6*mm))
+    st.append(Paragraph("<b>Date:</b>", s["SGN"]))
+
+    doc.build(st)
+
+
+# ─────────────────────────────────────────────────────────────
+# INTERNSHIP — single page, no overflow
+# ─────────────────────────────────────────────────────────────
+def _internship_pdf(ctx, pdf_path):
+    # Compact styles for internship to fit 1 page
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_JUSTIFY
+    s = S()
+    # Override with compact sizes
+    # Normal styles — same as pre-offer, good spacing
+    from reportlab.lib.styles import ParagraphStyle as PS
+    from reportlab.lib.enums import TA_JUSTIFY as TAJ, TA_CENTER as TAC
+    BC_style   = PS(name="BC2",   fontName=FR, fontSize=10.5, leading=16, textColor=BLACK, alignment=TAJ, spaceAfter=10)
+    BSUB_style = PS(name="BSUB2", fontName=FB, fontSize=12,   leading=18, textColor=BLACK, alignment=TAC, spaceAfter=10)
+    sal  = ctx.get("salutation", "Ms.")
+    nm   = ctx.get("intern_name", "")
+    reg  = ctx.get("reg_no", "")
+    col  = ctx.get("college", "")
+    dept = ctx.get("department", "")
+    rol  = ctx.get("role", "")
+    std  = ctx.get("start_date", "")
+    end  = ctx.get("end_date", "")
+    dur  = ctx.get("duration", "")
+    resp = ctx.get("responsibilities", [])
+    p    = _pronoun(sal)
+
+    # College line — always prefix department with "Department of" if not already
+    if col and dept:
+        dept_display = dept if dept.lower().startswith("department") else f"Department of {dept}"
+        college_line = f"{col}, {dept_display}"
+    elif col:
+        college_line = col
+    elif dept:
+        college_line = f"Department of {dept}"
+    else:
+        college_line = ""
+
+    doc = _doc(pdf_path)
+    st  = []
+
+    st += _hdr("Internship Completion Certificate")
+    st.append(Paragraph("<b>TO WHOM IT MAY CONCERN</b>", BSUB_style))
+
+    reg_part = f" (Reg. No: <b>{reg}</b>)," if reg else ","
+    col_part = f" <b>{college_line}</b>," if college_line else ""
+    st.append(Paragraph(
+        f"This is to formally certify that <b>{sal} {nm}</b>{reg_part}{col_part} "
+        f"has successfully completed {p['pos']} internship with <b>Analytics Avenue LLP</b> "
+        f"in the role of <b>{rol}</b>.", BC_style))
+
+    st.append(Paragraph(
+        f"{p['cap']} internship was carried out for a period of <b>{dur}</b>, from "
+        f"<b>{std}</b> to <b>{end}</b>, during which {p['sub']} was actively "
+        f"involved in <b>Talent Acquisition and HR support activities</b> under the "
+        f"guidance and supervision of the internal team.", BC_style))
+
+    if resp:
+        bold_resp = ", ".join(f"<b>{r}</b>" for r in resp)
+        st.append(Paragraph(
+            f"During the internship tenure, {p['sub']} was engaged in responsibilities "
+            f"including {bold_resp}. {p['sub'].capitalize()} demonstrated sincere "
+            f"effort, good professional conduct, and a strong willingness to learn throughout "
+            f"the internship period.", BC_style))
+
+    st.append(Paragraph(
+        f"This internship provided {p['obj']} with practical exposure to "
+        f"<b>Talent Acquisition processes</b>, recruitment workflow, and basic HR operations "
+        f"in a professional work environment.", BC_style))
+
+    st.append(Paragraph(
+        f"We appreciate {p['pos']} contribution during the internship period and wish "
+        f"{p['obj']} success in {p['pos']} future academic and professional endeavors.",
+        BC_style))
+
+    st.append(Paragraph(
+        "This letter is being issued as an <b>Internship Completion Certificate / Letter of "
+        "Completion</b> from <b>Analytics Avenue LLP</b>.", BC_style))
+
+    st.append(Spacer(1, 12*mm))
+    st += _sig_block(s, "Analytics Avenue and Advanced Analytics")
+
+    doc.build(st)
+
+
+# ─────────────────────────────────────────────────────────────
+# OFFER LETTER
+# ─────────────────────────────────────────────────────────────
+def _offer_letter_pdf(ctx, pdf_path):
+    s   = S()
+    sal = ctx.get("salutation", "Ms.")
+    nm  = ctx.get("candidate_name", "")
+    rol = ctx.get("role", "")
+    dep = ctx.get("department", "")
+    doj = ctx.get("joining_date", "")
+    ld  = ctx.get("letter_date", "")
+
+    doc = _doc(pdf_path)
+    st  = []
+
+    # PAGE 1
+    st += _hdr("Offer Letter")
+    st.append(Paragraph(f"Date: <b>{ld}</b>", s["B"]))
+    st.append(Spacer(1, 2*mm))
+    st.append(Paragraph(f"Dear <b>{sal} {nm}</b>,", s["B"]))
+    st.append(Paragraph(
+        f"We are pleased to extend this offer of employment to you for the position of "
+        f"<b>{rol}</b> in the <b>{dep}</b> department at <b>Analytics Avenue LLP</b>. "
+        f"Your employment will commence from <b>{doj}</b>.", s["B"]))
+
+    st.append(Paragraph("<b>Compensation &amp; Benefits</b>", s["SH"]))
+    st.append(Paragraph(
+        f"Your total Cost to Company (CTC) is <b>{ctx.get('ctc_lpa','')} "
+        f"({ctx.get('ctc_annual_str','')} per annum)</b>, structured as follows:", s["B"]))
+
+    tdata = [
+        ["Salary Component",                       "Monthly Amount"],
+        ["Basic Salary",                           ctx.get("basic_monthly_str","")],
+        ["House Rent Allowance (HRA)",             ctx.get("hra_monthly_str","")],
+        ["Provident Fund \u2014 Employer",         ctx.get("pf_monthly_str","")],
+        ["Special Allowance",                      ctx.get("special_allowance_monthly_str","")],
+        ["Gross Monthly (Fixed)",                  ctx.get("gross_monthly_str","")],
+        ["Variable Pay (Annual, Perf-Based)",      ctx.get("variable_annual_str","")],
+        ["Total CTC (Annual)",                     ctx.get("ctc_annual_str","")],
+    ]
+    cw  = [CW*0.70, CW*0.30]
+    tbl = Table(tdata, colWidths=cw)
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND",     (0,0),(-1,0),  TABLE_HEAD),
+        ("TEXTCOLOR",      (0,0),(-1,0),  WHITE),
+        ("FONTNAME",       (0,0),(-1,0),  FB),
+        ("FONTNAME",       (0,1),(-1,-1), FR),
+        ("FONTSIZE",       (0,0),(-1,-1), 10),
+        ("ROWBACKGROUNDS", (0,1),(-1,-1), [WHITE, LIGHT_GRAY]),
+        ("BACKGROUND",     (0,5),(-1,5),  TABLE_ALT),
+        ("BACKGROUND",     (0,7),(-1,7),  TABLE_ALT),
+        ("FONTNAME",       (0,5),(-1,5),  FB),
+        ("FONTNAME",       (0,7),(-1,7),  FB),
+        ("ALIGN",          (1,0),(1,-1),  "RIGHT"),
+        ("VALIGN",         (0,0),(-1,-1), "MIDDLE"),
+        ("TOPPADDING",     (0,0),(-1,-1), 5),
+        ("BOTTOMPADDING",  (0,0),(-1,-1), 5),
+        ("LEFTPADDING",    (0,0),(-1,-1), 8),
+        ("RIGHTPADDING",   (0,0),(-1,-1), 8),
+        ("GRID",           (0,0),(-1,-1), 0.5, colors.HexColor("#CCCCCC")),
+    ]))
+    st.append(tbl)
+    st.append(Spacer(1, 3*mm))
+    st.append(Paragraph("<b>Terms &amp; Conditions</b>", s["SH"]))
+    st.append(_bul("<b>Probation Period:</b> Your first 3 months will be a probationary period.", s))
+    st.append(_bul("<b>Notice Period:</b> 90 days from either side after confirmation.", s))
+    st.append(_bul(f"<b>Training Bond:</b> 12 months. Early exit attracts recovery of up to <b>\u20b91,00,000</b>.", s))
+    st.append(_bul("<b>Background Verification:</b> Offer subject to successful background verification.", s))
+
+    # PAGE 2
+    st.append(PageBreak())
+    st += _hdr("Offer Letter")
+    st.append(Paragraph("<b>Roles &amp; Responsibilities</b>", s["SH"]))
+    st.append(Paragraph("During the tenure, the employee is expected to actively participate in:", s["B"]))
+    for item in [
+        "End-to-end business development activities",
+        "Client engagement and lead generation",
+        "Follow-ups and achievement of assigned targets",
+        "Preparation of reports and dashboards",
+        "Completion of mandatory technical and professional training programs",
+    ]:
+        st.append(_bul(item, s))
+
+    st.append(Spacer(1, 4*mm))
+    st.append(Paragraph(
+        "We look forward to welcoming you to the Analytics Avenue LLP family. Please sign "
+        "and return a copy of this letter as confirmation of your acceptance.", s["B"]))
+    st.append(Spacer(1, 8*mm))
+    st += _sig_block(s, "Analytics Avenue LLP")
+    st.append(Spacer(1, 6*mm))
+    st.append(Paragraph("<b>Acceptance of Offer:</b>", s["SGN"]))
+    st.append(Paragraph(
+        f"I, _____________________ accept the offer of employment as <b>{rol}</b> at "
+        "Analytics Avenue LLP under the terms and conditions outlined in this offer letter.",
+        s["B"]))
+    st.append(Spacer(1, 6*mm))
+    st.append(Paragraph("<b>Signature:</b>", s["SGN"]))
+    st.append(Spacer(1, 6*mm))
+    st.append(Paragraph("<b>Date:</b>", s["SGN"]))
+
+    doc.build(st)
+
+
+# ─────────────────────────────────────────────────────────────
+# ENTRY POINTS
+# ─────────────────────────────────────────────────────────────
+def generate_pdf_direct(doc_type_key, context, pdf_path):
+    try:
+        if   doc_type_key == "pre_offer":    _pre_offer_pdf(context, pdf_path)
+        elif doc_type_key == "internship":   _internship_pdf(context, pdf_path)
+        elif doc_type_key == "offer_letter": _offer_letter_pdf(context, pdf_path)
+        return os.path.exists(pdf_path)
+    except Exception as e:
+        print(f"PDF error: {e}")
+        import traceback; traceback.print_exc()
+        return False
+
+
+def generate_document(template_name, context, candidate_name, doc_type):
+    ensure_output_dir()
+    date_str  = datetime.now().strftime("%d%m%Y")
+    safe_name = candidate_name.replace(" ", "_").replace(".", "")
+    filename  = f"{safe_name}_{doc_type}_{date_str}"
+    type_map  = {
+        "PreOffer":    "pre_offer",
+        "Internship":  "internship",
+        "OfferLetter": "offer_letter",
+    }
+    pdf_key = type_map.get(doc_type, "pre_offer")
+    try:
+        docx_path = render_docx(template_name, context, filename)
+        pdf_path  = os.path.join(OUTPUT_DIR, f"{filename}.pdf")
+        pdf_ok    = generate_pdf_direct(pdf_key, context, pdf_path)
+        return {
+            "docx_path": docx_path,
+            "pdf_path":  pdf_path if pdf_ok else None,
+            "filename":  filename,
+            "success":   True,
+            "error":     None,
+        }
+    except Exception as e:
+        return {
+            "docx_path": None,
+            "pdf_path":  None,
+            "filename":  filename,
+            "success":   False,
+            "error":     str(e),
+        }
+
+
+def read_file_bytes(path):
+    with open(path, "rb") as f:
+        return f.read()
