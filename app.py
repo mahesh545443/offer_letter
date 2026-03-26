@@ -174,7 +174,6 @@ st.markdown("""
 # ─── Sidebar ──────────────────────────────────────────────────
 with st.sidebar:
 
-    # Sidebar logo
     st.markdown(f"""
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
         <img src="{logo_url}" width="36" style="border-radius:4px;">
@@ -345,7 +344,6 @@ with tab1:
                     if "Template not found" in str(result['error']):
                         st.warning("📁 Please add `pre_offer_template.docx` to the `templates/` folder.")
 
-        # Always show download buttons if result exists
         if st.session_state.get("pre_result"):
             r = st.session_state["pre_result"]
             st.success(f"✅ Ready: {r['filename']}")
@@ -429,27 +427,38 @@ with tab2:
 
         if parse_salary_btn and salary_prompt:
             with st.spinner("Calculating..."):
-                params = parse_salary_prompt_groq(salary_prompt)
+                params = parse_salary_prompt_groq(salary_prompt, model=groq_model)
                 st.session_state.salary_params = params
+
+                # ── FIX: Use params directly — NO hardcoded fallback defaults here ──
+                # All defaults are already handled correctly inside parse_salary_prompt_groq
                 st.session_state.salary_result = calculate_salary_breakup(
                     ctc_annual=params["ctc_annual"],
-                    base_percent=params.get("base_percent", 40),
-                    hra_percent=params.get("hra_percent", 20),
-                    pf_percent=params.get("pf_percent", 5.0),
-                    variable_percent=params.get("variable_percent", 10),
+                    base_percent=params["base_percent"],
+                    hra_percent=params["hra_percent"],
+                    pf_percent=params["pf_percent"],
+                    variable_percent=params["variable_percent"],
                 )
+
+            # Show debug info so HR can verify parsing
+            with st.expander("🔍 Parsed Parameters (click to verify)", expanded=False):
+                p = st.session_state.salary_params
+                st.caption(f"CTC: ₹{p['ctc_annual']:,.0f} | Basic: {p['base_percent']}% of CTC | "
+                           f"HRA: {p['hra_percent']}% of Basic | "
+                           f"PF: {'None' if p['pf_percent'] == 0 else str(p['pf_percent']) + '% of Basic'} | "
+                           f"Variable: {p['variable_percent']}% of CTC")
 
         if st.session_state.salary_result:
             s = st.session_state.salary_result
             st.markdown("**Salary Breakup Preview**")
             preview_data = {
-                "Basic (Monthly)": s["basic_monthly_str"],
-                "HRA (Monthly)": s["hra_monthly_str"],
-                "PF Employer (Monthly)": s["pf_monthly_str"],
+                "Basic (Monthly)":            s["basic_monthly_str"],
+                "HRA (Monthly)":              s["hra_monthly_str"],
+                "PF Employer (Monthly)":      s["pf_monthly_str"],
                 "Special Allowance (Monthly)": s["special_allowance_monthly_str"],
-                "Gross Monthly": s["gross_monthly_str"],
-                "Variable Pay (Annual)": s["variable_annual_str"],
-                "Total CTC": s["ctc_annual_str"],
+                "Gross Monthly":              s["gross_monthly_str"],
+                "Variable Pay (Annual)":      s["variable_annual_str"],
+                "Total CTC":                  s["ctc_annual_str"],
             }
             for label, val in preview_data.items():
                 cols = st.columns([3, 2])
@@ -475,10 +484,11 @@ with tab2:
                         department=dept_offer,
                         joining_date=joining_date_offer.strftime("%d-%m-%Y"),
                         ctc_annual=p["ctc_annual"],
-                        base_percent=p.get("base_percent", 40),
-                        hra_percent=p.get("hra_percent", 20),
-                        pf_percent=p.get("pf_percent", 5.0),
-                        variable_percent=p.get("variable_percent", 10),
+                        # ── FIX: Use params directly — NO hardcoded fallback defaults ──
+                        base_percent=p["base_percent"],
+                        hra_percent=p["hra_percent"],
+                        pf_percent=p["pf_percent"],
+                        variable_percent=p["variable_percent"],
                         letter_date=letter_date_offer.strftime("%d-%m-%Y"),
                     )
 
@@ -543,7 +553,6 @@ with tab3:
                                     index=get_departments().index(intern_data.get("department", get_departments()[0])) if intern_data.get("department") in get_departments() else 0,
                                     key="intern_dept")
 
-        # Role dropdown — when changed, auto-fill responsibilities
         role_intern = st.selectbox("Role / Team *", get_roles(),
                                     index=get_roles().index(intern_data.get("role", get_roles()[0])) if intern_data.get("role") in get_roles() else 0,
                                     key="intern_role")
@@ -577,11 +586,9 @@ with tab3:
 
         letter_date_intern = st.date_input("Letter Date *", value=date.today(), key="intern_letter_date")
 
-        # Auto-fill responsibilities from role OR from DB record
         if intern_data.get("responsibilities"):
             default_resp = "\n".join(intern_data.get("responsibilities", []))
         else:
-            # Auto-generate from role selection
             auto_resp = get_responsibilities_for_role(role_intern)
             default_resp = "\n".join(auto_resp)
 
@@ -599,7 +606,6 @@ with tab3:
         generate_intern = st.button("📄 Generate Internship Letter", key="gen_intern", use_container_width=True)
 
         if generate_intern:
-            # Use typed name if dropdown is "Select or type new"
             intern_name = intern_name_final.strip()
             if not intern_name:
                 st.error("Please select or type an intern name.")
