@@ -45,14 +45,25 @@ from reportlab.pdfgen import canvas
 
 
 # ── Register fonts WITH bold family so <b> tags work ─────────
+# ── Register fonts WITH bold family so <b> tags work ─────────
 def _register_fonts():
+    # 1. Local Assets Check (Highest Priority for Rupee Symbol support)
+    # Ensure DejaVuSans.ttf and DejaVuSans-Bold.ttf are in your /assets folder
+    local_reg = os.path.join(ASSETS_DIR, "DejaVuSans.ttf")
+    local_bold = os.path.join(ASSETS_DIR, "DejaVuSans-Bold.ttf")
+    
+    # 2. System Path Check (Fallback)
     candidates = [
+        # Check local assets first
+        (local_reg, local_bold, None, None),
+        # Linux standard paths
         (
             '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
             '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
             '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf',
             '/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf',
         ),
+        # Windows standard paths
         (
             'C:/Windows/Fonts/arial.ttf',
             'C:/Windows/Fonts/arialbd.ttf',
@@ -60,25 +71,33 @@ def _register_fonts():
             'C:/Windows/Fonts/arialbi.ttf',
         ),
     ]
+
     for reg, bold, ital, boldi in candidates:
-        if os.path.exists(reg) and os.path.exists(bold):
+        if reg and os.path.exists(reg) and os.path.exists(bold):
             try:
-                pdfmetrics.registerFont(TTFont('HR',   reg))
+                # Register Normal and Bold
+                pdfmetrics.registerFont(TTFont('HR', reg))
                 pdfmetrics.registerFont(TTFont('HR-B', bold))
-                if os.path.exists(ital):
+                
+                # Register Italic if available, else fallback to Normal
+                if ital and os.path.exists(ital):
                     pdfmetrics.registerFont(TTFont('HR-I', ital))
                 else:
                     pdfmetrics.registerFont(TTFont('HR-I', reg))
-                if os.path.exists(boldi):
+                
+                # Register Bold-Italic if available, else fallback to Bold
+                if boldi and os.path.exists(boldi):
                     pdfmetrics.registerFont(TTFont('HR-BI', boldi))
                 else:
                     pdfmetrics.registerFont(TTFont('HR-BI', bold))
-                # THIS is the key — makes <b> tags work
+                
+                # Map the family so <b> and <i> tags work automatically
                 registerFontFamily('HR', normal='HR', bold='HR-B', italic='HR-I', boldItalic='HR-BI')
                 return 'HR', 'HR-B'
             except Exception:
                 continue
-    # Helvetica has built-in bold family — <b> tags work natively
+
+    # Fallback to Helvetica if no fonts found (Note: Helvetica does NOT support ₹)
     return 'Helvetica', 'Helvetica-Bold'
 
 
@@ -95,7 +114,6 @@ BORDER_CLR = colors.HexColor("#2E74B5")
 PAGE_W, PAGE_H = A4
 LM = 2.0*cm; RM = 2.0*cm; TM = 1.2*cm; BM = 2.0*cm
 CW = PAGE_W - LM - RM
-
 
 # ── Border at page edge ───────────────────────────────────────
 class BC(canvas.Canvas):
