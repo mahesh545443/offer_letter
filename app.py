@@ -153,21 +153,30 @@ div[data-testid="stTabs"] > div:last-child {
     padding: 24px;
 }
 
-/* ── Generate buttons ── */
+/* ── Generate buttons — always white text on blue ── */
 .stButton > button {
-    background: #1a56b0;
+    background: #1a56b0 !important;
     color: white !important;
-    border: none;
-    border-radius: 7px;
-    font-weight: 600;
-    font-size: 13px;
-    padding: 10px 20px;
-    width: 100%;
-    letter-spacing: 0.2px;
-    transition: background 0.2s;
+    border: none !important;
+    border-radius: 7px !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    padding: 10px 20px !important;
+    width: 100% !important;
+    letter-spacing: 0.2px !important;
+    transition: background 0.2s !important;
 }
 .stButton > button:hover {
     background: #1344a0 !important;
+    color: white !important;
+}
+.stButton > button:focus {
+    background: #1a56b0 !important;
+    color: white !important;
+}
+.stButton > button p,
+.stButton > button span,
+.stButton > button div {
     color: white !important;
 }
 
