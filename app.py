@@ -485,15 +485,10 @@ with tab2:
 
         if parse_salary_btn and salary_prompt:
             with st.spinner("Parsing salary structure..."):
-                params = parse_salary_prompt_groq(salary_prompt, model=groq_model)
-                st.session_state.salary_params = params
-                st.session_state.salary_result = calculate_salary_breakup(
-                    ctc_annual=params["ctc_annual"],
-                    base_percent=params["base_percent"],
-                    hra_percent=params["hra_percent"],
-                    pf_percent=params["pf_percent"],
-                    variable_percent=params["variable_percent"],
-                )
+                # Groq computes actual rupee amounts — no separate calculate call needed
+                result = parse_salary_prompt_groq(salary_prompt, model=groq_model)
+                st.session_state.salary_params = result
+                st.session_state.salary_result = result
 
         if st.session_state.salary_params:
             p = st.session_state.salary_params
