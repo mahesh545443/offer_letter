@@ -209,12 +209,12 @@ def S():
     def add(n, **kw):
         if n not in s:
             s.add(ParagraphStyle(name=n, **kw))
-    add("B",   fontName=FR, fontSize=10.5, leading=16, textColor=BLACK, alignment=TA_JUSTIFY, spaceAfter=6)
-    add("SH",  fontName=FB, fontSize=11,   leading=16, textColor=BLACK, spaceBefore=6, spaceAfter=3)
+    add("B",   fontName=FR, fontSize=10.5, leading=15, textColor=BLACK, alignment=TA_JUSTIFY, spaceAfter=5)
+    add("SH",  fontName=FB, fontSize=11,   leading=15, textColor=BLACK, spaceBefore=5, spaceAfter=3)
     add("TIT", fontName=FB, fontSize=14,   leading=18, textColor=BLACK, alignment=TA_CENTER, spaceAfter=8)
     add("SUB", fontName=FB, fontSize=12,   leading=16, textColor=BLACK, alignment=TA_CENTER, spaceAfter=6)
-    add("BUL", fontName=FR, fontSize=10.5, leading=15, textColor=BLACK, leftIndent=14, spaceAfter=3)
-    add("SUL", fontName=FR, fontSize=10.5, leading=15, textColor=BLACK, leftIndent=28, spaceAfter=2)
+    add("BUL", fontName=FR, fontSize=10.5, leading=14, textColor=BLACK, leftIndent=14, spaceAfter=2)
+    add("SUL", fontName=FR, fontSize=10.5, leading=14, textColor=BLACK, leftIndent=28, spaceAfter=1)
     add("SGN", fontName=FB, fontSize=10.5, leading=14, textColor=BLACK, spaceAfter=2)
     add("ITA", fontName=FR, fontSize=10.5, leading=14, textColor=GRAY,  spaceAfter=2)
     return s
@@ -254,7 +254,7 @@ def _hdr(title):
         items.append(Paragraph(
             '<font color="#064b86" size="16"><b>Analytics Avenue LLP</b></font>', s["B"]
         ))
-    items.append(Spacer(1, 2*mm))
+    items.append(Spacer(1, 1*mm))
     items.append(Paragraph(title, s["TIT"]))
     items.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
     items.append(Spacer(1, 2*mm))
@@ -352,54 +352,35 @@ def _pre_offer_pdf(ctx, pdf_path):
         "Applicable Statutory Benefits, including gratuity, as per prevailing laws "
         "and company policy", s))
 
-    # PAGE 2
+    # PAGE 2 — compact to fit all content
+    from reportlab.lib.styles import ParagraphStyle as PS2
+    from reportlab.lib.enums import TA_JUSTIFY as TAJ2
+    P2  = PS2(name="P2B",  fontName=FR, fontSize=9.8, leading=13.5, textColor=BLACK, alignment=TAJ2, spaceAfter=4)
+    P2S = PS2(name="P2S",  fontName=FR, fontSize=9.8, leading=13,   textColor=BLACK, leftIndent=24, spaceAfter=1)
+    from reportlab.platypus import Paragraph as _Pa
+    def _s2(l, t): return _Pa(f"{l}. {t}", P2S)
+
     st.append(PageBreak())
     st += _hdr("Points to Be Noted")
-
-    st.append(Paragraph(
-        "<b>1. Promotion &amp; Salary Revision:</b> Employees who meet performance "
-        "expectations and achieve assigned targets in business development and technical "
-        "proof-of-concepts (POCs) will be eligible for promotion and a suitable salary hike, "
-        "as per management discretion. The official salary revision happens during "
-        "September\u2013October and April\u2013May. Upon successful completion of the Data "
-        "Analytics Trainee role the employee will be promoted to the role of "
-        "<b>Business Analyst.</b>", s["B"]))
-    st.append(Paragraph(
-        "<b>2. Training-Cum-Service Bond:</b> As per the terms of employment, the employee "
-        "is required to execute a Training-cum-Service Bond committing to serve the company "
-        "for 12 (twelve) months from the date of joining. If the employee voluntarily resigns "
-        "or abandons employment before completing this period, they agree to reimburse a "
-        "proportionate training cost of up to <b>\u20b91,00,000</b> (Rupees One Lakh only).", s["B"]))
-    st.append(Paragraph(
-        "<b>3. Roles &amp; Responsibilities:</b> During the tenure, the employee is expected "
-        "to actively participate in:", s["B"]))
-    st.append(_sub("a", "End-to-end business development activities", s))
-    st.append(_sub("b", "Client engagement and lead generation", s))
-    st.append(_sub("c", "Follow-ups and achievement of assigned targets", s))
-    st.append(_sub("d", "Preparation of reports and dashboards", s))
-    st.append(_sub("e", "Completion of mandatory technical and professional training programs", s))
-    st.append(Paragraph(
-        "<b>4. Performance Management:</b> Repeated performance escalations (more than five "
-        "(5)) may lead to proportionate salary deductions of <b>\u20b91,000</b> per instance.", s["B"]))
-    st.append(Paragraph(
-        "<b>5. Working Hours &amp; Shifts:</b> The employee should be willing to work in any "
-        "shifts and on weekends, if required, based on business needs.", s["B"]))
-    st.append(Paragraph(
-        "<b>Notice Period:</b> The company's official notice period is 90 days. Failure to "
-        "serve the full notice period may result in the employee being marked as terminated "
-        "in company.", s["B"]))
-
-    st.append(Spacer(1, 6*mm))
+    st.append(Paragraph("<b>1. Promotion &amp; Salary Revision:</b> Employees who meet performance expectations and achieve assigned targets in business development and technical proof-of-concepts (POCs) will be eligible for promotion and a suitable salary hike, as per management discretion. The official salary revision happens during September–October and April–May. Upon successful completion of the Data Analytics Trainee role the employee will be promoted to the role of <b>Business Analyst.</b>", P2))
+    st.append(Paragraph("<b>2. Training-Cum-Service Bond:</b> As per the terms of employment, the employee is required to execute a Training-cum-Service Bond committing to serve the company for 12 (twelve) months from the date of joining. If the employee voluntarily resigns or abandons employment before completing this period, they agree to reimburse a proportionate training cost of up to <b>₹1,00,000</b> (Rupees One Lakh only).", P2))
+    st.append(Paragraph("<b>3. Roles &amp; Responsibilities:</b> During the tenure, the employee is expected to actively participate in:", P2))
+    st.append(_s2("a", "End-to-end business development activities"))
+    st.append(_s2("b", "Client engagement and lead generation"))
+    st.append(_s2("c", "Follow-ups and achievement of assigned targets"))
+    st.append(_s2("d", "Preparation of reports and dashboards"))
+    st.append(_s2("e", "Completion of mandatory technical and professional training programs"))
+    st.append(Paragraph("<b>4. Performance Management:</b> Repeated performance escalations (more than five (5)) may lead to proportionate salary deductions of <b>₹1,000</b> per instance.", P2))
+    st.append(Paragraph("<b>5. Working Hours &amp; Shifts:</b> The employee should be willing to work in any shifts and on weekends, if required, based on business needs.", P2))
+    st.append(Paragraph("<b>Notice Period:</b> The company’s official notice period is 90 days. Failure to serve the full notice period may result in the employee being marked as terminated in company.", P2))
+    st.append(Spacer(1, 3*mm))
     st += _sig_block(s, "Analytics Avenue")
-    st.append(Spacer(1, 5*mm))
+    st.append(Spacer(1, 2*mm))
     st.append(Paragraph("<b>Acceptance of Offer:</b>", s["SGN"]))
-    st.append(Paragraph(
-        f"I, _____________________ accept the position of <b>{rol}</b> at Analytics Avenue "
-        "under the terms and conditions outlined in this offer letter and the document attached.",
-        s["B"]))
-    st.append(Spacer(1, 5*mm))
+    st.append(Paragraph(f"I, _____________________ accept the position of <b>{rol}</b> at Analytics Avenue under the terms and conditions outlined in this offer letter and the document attached.", P2))
+    st.append(Spacer(1, 3*mm))
     st.append(Paragraph("<b>Signature:</b>", s["SGN"]))
-    st.append(Spacer(1, 5*mm))
+    st.append(Spacer(1, 3*mm))
     st.append(Paragraph("<b>Date:</b>", s["SGN"]))
 
     doc.build(st)
