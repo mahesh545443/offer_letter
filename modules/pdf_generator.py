@@ -587,19 +587,22 @@ def _offer_letter_pdf(ctx, pdf_path):
     st.append(tbl)
     st.append(Spacer(1, 3*mm))
     st.append(Paragraph("<b>Terms &amp; Conditions</b>", s["SH"]))
-    st.append(_bul("<b>Probation Period:</b> Your first 3 months will be a probationary period.", s))
     st.append(_bul("<b>Notice Period:</b> 90 days from either side after confirmation.", s))
     st.append(_bul(f"<b>Training Bond:</b> 12 months. Early exit attracts recovery of up to <b>\u20b91,00,000</b>.", s))
     st.append(_bul("<b>Background Verification:</b> Offer subject to successful background verification.", s))
+    st.append(_bul("<b>Performance Management:</b> Repeated escalations (more than 5) may lead to proportionate salary deductions of <b>₹1,000</b> per instance.", s))
+    st.append(_bul("<b>Working Hours &amp; Shifts:</b> The employee should be willing to work in any shifts and on weekends, if required, based on business needs.", s))
 
-    st.append(PageBreak())
-    st += _hdr("Offer Letter")
+    # Add R&R on page 1 to fill the gap
+    st.append(Spacer(1, 3*mm))
     st.append(Paragraph("<b>Roles &amp; Responsibilities</b>", s["SH"]))
     st.append(Paragraph("During the tenure, the employee is expected to actively participate in:", s["B"]))
     for item in rr_items:
         st.append(_bul(item, s))
 
-    st.append(Spacer(1, 4*mm))
+    # Page 2 — closing, signature, acceptance
+    st.append(PageBreak())
+    st += _hdr("Offer Letter")
     st.append(Paragraph(
         "We look forward to welcoming you to the Analytics Avenue LLP family. Please sign "
         "and return a copy of this letter as confirmation of your acceptance.", s["B"]))
