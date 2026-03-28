@@ -510,17 +510,10 @@ with tab2:
 
         if parse_salary_btn and salary_prompt:
             with st.spinner("Parsing salary structure..."):
+                # Groq calculates everything — use result directly, no recalculation
                 params = parse_salary_prompt_groq(salary_prompt, model=groq_model)
-                # Now calculate proper breakup
-                sal = calculate_salary_breakup(
-                    ctc_annual=params["ctc_annual"],
-                    base_percent=params.get("base_percent", 40),
-                    hra_percent=params.get("hra_percent", 20),
-                    pf_percent=params.get("pf_percent", 5.0),
-                    variable_percent=params.get("variable_percent", 10),
-                )
                 st.session_state.salary_params = params
-                st.session_state.salary_result = sal
+                st.session_state.salary_result = params  # Groq already computed all amounts
 
         if st.session_state.salary_params:
             p = st.session_state.salary_params
