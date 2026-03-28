@@ -101,32 +101,18 @@ def _get_role_context(role: str) -> dict:
 
 # ── Font registration — safe for Streamlit Cloud re-runs ─────
 def _safe_register(name, path):
-    """Register a TTFont, ignoring 'already registered' errors."""
+    """Register a TTFont — always force fresh registration."""
     try:
         pdfmetrics.registerFont(TTFont(name, path))
-    except Exception as e:
-        if "already registered" in str(e).lower():
-            pass  # fine — already registered from a previous run
-        else:
-            raise
+    except Exception:
+        pass  # ignore all errors including already registered
 
 
 def _register_fonts():
     """
     Register DejaVuSans for ₹ symbol support.
-    Always safe to call multiple times.
-    Priority:
-      1. assets/ folder  ← committed to repo, always works on Streamlit Cloud
-      2. System paths    ← works locally on Linux
-      3. Matplotlib bundled fonts ← last resort fallback
+    System paths checked FIRST — always present on Streamlit Cloud (Ubuntu).
     """
-    # If already registered and working, return immediately
-    try:
-        from reportlab.pdfbase import pdfmetrics as _pm
-        if "HR" in _pm.getRegisteredFontNames() and "HR-B" in _pm.getRegisteredFontNames():
-            return "HR", "HR-B"
-    except Exception:
-        pass
     MATPLOTLIB_FONTS = "/usr/local/lib/python3.12/dist-packages/matplotlib/mpl-data/fonts/ttf"
 
     def _find(*candidates):
@@ -135,24 +121,26 @@ def _register_fonts():
                 return p
         return None
 
+    # System paths FIRST (guaranteed on Streamlit Cloud Ubuntu & Linux)
+    # Assets folder second (for any custom deployment)
     reg  = _find(
-        os.path.join(ASSETS_DIR, "DejaVuSans.ttf"),
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        os.path.join(ASSETS_DIR, "DejaVuSans.ttf"),
         os.path.join(MATPLOTLIB_FONTS, "DejaVuSans.ttf"),
     )
     bold = _find(
-        os.path.join(ASSETS_DIR, "DejaVuSans-Bold.ttf"),
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        os.path.join(ASSETS_DIR, "DejaVuSans-Bold.ttf"),
         os.path.join(MATPLOTLIB_FONTS, "DejaVuSans-Bold.ttf"),
     )
     ital = _find(
-        os.path.join(ASSETS_DIR, "DejaVuSans-Oblique.ttf"),
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",
+        os.path.join(ASSETS_DIR, "DejaVuSans-Oblique.ttf"),
         os.path.join(MATPLOTLIB_FONTS, "DejaVuSans-Oblique.ttf"),
     )
     bi   = _find(
-        os.path.join(ASSETS_DIR, "DejaVuSans-BoldOblique.ttf"),
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf",
+        os.path.join(ASSETS_DIR, "DejaVuSans-BoldOblique.ttf"),
         os.path.join(MATPLOTLIB_FONTS, "DejaVuSans-BoldOblique.ttf"),
     )
 
@@ -320,6 +308,8 @@ def _doc(pdf_path, compact=False):
 # PRE-OFFER LETTER — 2 pages
 # ─────────────────────────────────────────────────────────────
 def _pre_offer_pdf(ctx, pdf_path):
+    global FR, FB
+    FR, FB = _register_fonts()  # Always re-register before generating
     s   = S()
     sal = ctx.get("salutation", "Ms.")
     nm  = ctx.get("candidate_name", "")
@@ -404,6 +394,8 @@ def _pre_offer_pdf(ctx, pdf_path):
 # INTERNSHIP — fully dynamic by role & department
 # ─────────────────────────────────────────────────────────────
 def _internship_pdf(ctx, pdf_path):
+    global FR, FB
+    FR, FB = _register_fonts()  # Always re-register before generating
     s    = S()
     sal  = ctx.get("salutation", "Ms.")
     nm   = ctx.get("intern_name", "")
@@ -488,6 +480,8 @@ def _internship_pdf(ctx, pdf_path):
 # OFFER LETTER
 # ─────────────────────────────────────────────────────────────
 def _offer_letter_pdf(ctx, pdf_path):
+    global FR, FB
+    FR, FB = _register_fonts()  # Always re-register before generating
     s   = S()
     sal = ctx.get("salutation", "Ms.")
     nm  = ctx.get("candidate_name", "")
