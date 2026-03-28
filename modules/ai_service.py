@@ -294,60 +294,33 @@ def _fallback_salary_parse(prompt_text: str) -> dict:
             val = float(m.group(1))
             ctc = (val * 1000 if val < 1000 else val) * 12
 
-    SALARY_KEYWORDS = ['basic', 'base', 'hra', 'pf', 'provident',
-                       'variable', 'bonus', 'incentive', 'ctc', 'lpa']
-
-    def _extract_near(keyword, text):
-        """Extract number directly adjacent to keyword only."""
-        kpos = text.find(keyword)
-        if kpos == -1:
-            return None
-        before = text[:kpos].rstrip()
-        after  = text[kpos + len(keyword):]
-
-        # Before: must be IMMEDIATELY before (no other keyword in between)
-        # Only look at last 15 chars before keyword
-        near_before = before[-15:]
-        m = re.search(r'(\d+\.?\d*)\s*%\s*$', near_before)
-        if m:
-            # Make sure no other salary keyword is between this % and our keyword
-            val_end = before.rfind(m.group(1))
-            snippet = before[max(0,val_end-5):].strip()
-            other_kw = any(kw in snippet and kw != keyword
-                          for kw in SALARY_KEYWORDS if kw != 'lpa' and kw != 'ctc')
-            if not other_kw:
-                return ('pct', float(m.group(1)))
-        m = re.search(r'(\d+\.?\d*)\s*lpa?\s*$', near_before)
-        if m and float(m.group(1)) < 50:
-            return ('lpa', float(m.group(1)))
-        m = re.search(r'(\d+\.?\d*)\s+as\s*(?:a\s+|an\s+)?$', near_before)
-        if m and float(m.group(1)) < 50:
-            return ('lpa', float(m.group(1)))
-
-        # After: look immediately after keyword (skip non-digits up to 10 chars)
-        m = re.search(r'^[^\d]{0,10}(\d+\.?\d*)\s*%', after)
-        if m:
-            return ('pct', float(m.group(1)))
-        m = re.search(r'^[^\d]{0,10}(\d+\.?\d*)\s*lpa?', after)
-        if m and float(m.group(1)) < 50:
-            return ('lpa', float(m.group(1)))
-        return None
-
     # ── BASIC ─────────────────────────────────────────────────
-    basic_a = ctc * 0.40  # default
-    for kw in ['basic', 'base pay', 'base']:
-        res = _extract_near(kw, p)
-        if res:
-            typ, val = res
-            basic_a = ctc * val / 100 if typ == 'pct' else val * 100000
-            break
+    basic_a = ctc * 0.40  # default 40%
+
+    # "3.8 as a base" / "3.8 as base" / "3.8 as the base"
+    m = re.search(r'(\d+\.?\d*)\s+as\s+(?:a\s+|an\s+|the\s+)?base(?:\s+pay)?', p)
+    if m:
+        basic_a = float(m.group(1)) * 100000
+    else:
+        # "basic 3.8 lpa" / "base 3.8 lpa"
+        m = re.search(r'bas(?:e|ic)(?:\s+pay)?\s+(\d+\.?\d*)\s*lpa?', p)
+        if m:
+            basic_a = float(m.group(1)) * 100000
+        else:
+            # "40% basic" / "basic 40%" / "40 percent base"
+            m = re.search(r'(\d+\.?\d*)\s*%\s*bas(?:e|ic)', p)
+            if not m:
+                m = re.search(r'bas(?:e|ic)(?:\s+pay)?\s*[^\d]*(\d+\.?\d*)\s*%', p)
+            if m:
+                basic_a = ctc * float(m.group(1)) / 100
 
     # ── HRA ───────────────────────────────────────────────────
     hra_a = basic_a * 0.20  # default 20% of basic
-    res = _extract_near('hra', p)
-    if res:
-        typ, val = res
-        hra_a = basic_a * val / 100 if typ == 'pct' else val * 100000
+    m = re.search(r'(\d+\.?\d*)\s*%\s*hra', p)
+    if not m:
+        m = re.search(r'hra\s*[^\d]*(\d+\.?\d*)\s*%', p)
+    if m:
+        hra_a = basic_a * float(m.group(1)) / 100
 
     # ── NO-PF check ───────────────────────────────────────────
     no_pf = bool(re.search(
@@ -358,26 +331,19 @@ def _fallback_salary_parse(prompt_text: str) -> dict:
     if no_pf:
         pf_a = 0.0
     else:
-        # "X% of Y% of CTC" / "deducting X% on PF towards Y% of CTC"
-        m = re.search(
-            r'(\d+\.?\d*)\s*%[^%\d]*(\d+\.?\d*)\s*%[^%]*?ctc', p)
-        if not m:
-            m = re.search(
-                r'towards\s*(\d+\.?\d*)\s*%[^%]*?ctc[^%]*(\d+\.?\d*)\s*%', p)
+        # "10% on PF towards 70% of CTC" / "PF 10% of 70% of CTC"
+        m = re.search(r'(\d+\.?\d*)\s*%[^%\d]*(\d+\.?\d*)\s*%[^%]*?ctc', p)
         if m:
-            # Two percentages near CTC — one is PF rate, one is CTC base
-            v1, v2 = float(m.group(1)), float(m.group(2))
-            # Smaller is likely PF rate, larger is CTC base %
-            pf_rate = min(v1, v2) / 100
-            ctc_base = max(v1, v2) / 100
+            pf_rate   = float(m.group(1)) / 100
+            ctc_base  = float(m.group(2)) / 100
             pf_a = ctc * ctc_base * pf_rate
         else:
-            res = _extract_near('pf', p)
-            if not res:
-                res = _extract_near('provident', p)
-            if res:
-                typ, val = res
-                pf_a = basic_a * val / 100 if typ == 'pct' else val * 12
+            # "PF 12% of basic" / "12% pf"
+            m = re.search(r'(\d+\.?\d*)\s*%\s*pf', p)
+            if not m:
+                m = re.search(r'pf\s*[^\d]*(\d+\.?\d*)\s*%', p)
+            if m:
+                pf_a = basic_a * float(m.group(1)) / 100
 
     # ── NO-VARIABLE check ─────────────────────────────────────
     no_var = bool(re.search(r'no\s*(?:variable|bonus|incentive)', p))
@@ -385,32 +351,42 @@ def _fallback_salary_parse(prompt_text: str) -> dict:
     # ── VARIABLE ──────────────────────────────────────────────
     var_a = 0.0
     if not no_var:
-        for kw in ['variable pay', 'variable', 'bonus', 'incentive']:
-            res = _extract_near(kw, p)
-            if res:
-                typ, val = res
-                var_a = ctc * val / 100 if typ == 'pct' else val * 100000
-                break
+        # "1.2 as a variable pay" / "1.2 as variable"
+        m = re.search(r'(\d+\.?\d*)\s+as\s+(?:a\s+|an\s+)?variable(?:\s+pay)?', p)
+        if m:
+            var_a = float(m.group(1)) * 100000
+        else:
+            # "variable 1.2 lpa" / "variable pay 1.2"
+            m = re.search(r'variable(?:\s+pay)?\s+(\d+\.?\d*)\s*lpa?', p)
+            if m:
+                var_a = float(m.group(1)) * 100000
+            else:
+                # "10% variable" / "variable 10%"
+                m = re.search(r'(\d+\.?\d*)\s*%\s*(?:variable|bonus|incentive)', p)
+                if not m:
+                    m = re.search(r'(?:variable|bonus|incentive)(?:\s+pay)?\s*[^\d]*(\d+\.?\d*)\s*%', p)
+                if m:
+                    var_a = ctc * float(m.group(1)) / 100
 
     # ── SPECIAL ALLOWANCE (remainder) ─────────────────────────
     special_a = ctc - basic_a - hra_a - pf_a - var_a
     if special_a < 0:
-        # Reduce PF first
         excess = -special_a
-        pf_cut = min(pf_a, excess)
-        pf_a -= pf_cut; excess -= pf_cut
+        pf_cut = min(pf_a, excess); pf_a -= pf_cut; excess -= pf_cut
         if excess > 0:
-            hra_a = max(0, hra_a - excess)
-        special_a = ctc - basic_a - hra_a - pf_a - var_a
+            hra_cut = min(hra_a, excess); hra_a -= hra_cut; excess -= hra_cut
+        if excess > 0:
+            var_cut = min(var_a, excess); var_a -= var_cut
+        special_a = max(0, ctc - basic_a - hra_a - pf_a - var_a)
 
     return _validate_computed_salary({
-        "ctc_annual":     int(ctc),
-        "basic_monthly":  round(basic_a / 12),
-        "hra_monthly":    round(hra_a / 12),
-        "pf_monthly":     round(pf_a / 12),
+        "ctc_annual":      int(ctc),
+        "basic_monthly":   round(basic_a / 12),
+        "hra_monthly":     round(hra_a / 12),
+        "pf_monthly":      round(pf_a / 12),
         "variable_annual": round(var_a),
-        "pf_opted":       pf_a > 0,
-        "ctc_lpa":        f"{ctc/100000:.1f} LPA",
+        "pf_opted":        pf_a > 0,
+        "ctc_lpa":         f"{ctc/100000:.1f} LPA",
     })
 
 def _fallback_parse(prompt_text: str) -> dict:
