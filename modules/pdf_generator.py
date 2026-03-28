@@ -3,7 +3,8 @@ pdf_generator.py
 Analytics Avenue LLP
 Fixes:
   - ₹ symbol: assets/ folder fonts committed to repo (Streamlit Cloud compatible)
-  - Pre-Offer: 2 pages (merged Notice Period + signature into page 2)
+  - Font re-registration error on Streamlit Cloud fixed
+  - Pre-Offer: 2 pages
   - Internship: fully dynamic role/dept based text
 """
 
@@ -98,14 +99,25 @@ def _get_role_context(role: str) -> dict:
     }
 
 
-# ── Font registration ─────────────────────────────────────────
+# ── Font registration — safe for Streamlit Cloud re-runs ─────
+def _safe_register(name, path):
+    """Register a TTFont, ignoring 'already registered' errors."""
+    try:
+        pdfmetrics.registerFont(TTFont(name, path))
+    except Exception as e:
+        if "already registered" in str(e).lower():
+            pass  # fine — already registered from a previous run
+        else:
+            raise
+
+
 def _register_fonts():
     """
     Register DejaVuSans for ₹ symbol support.
     Priority:
       1. assets/ folder  ← committed to repo, always works on Streamlit Cloud
       2. System paths    ← works locally on Linux
-      3. Matplotlib bundled fonts ← fallback, present in most Python envs
+      3. Matplotlib bundled fonts ← last resort fallback
     """
     MATPLOTLIB_FONTS = "/usr/local/lib/python3.12/dist-packages/matplotlib/mpl-data/fonts/ttf"
 
@@ -138,18 +150,22 @@ def _register_fonts():
 
     if reg and bold:
         try:
-            pdfmetrics.registerFont(TTFont("HR",    reg))
-            pdfmetrics.registerFont(TTFont("HR-B",  bold))
-            pdfmetrics.registerFont(TTFont("HR-I",  ital or reg))
-            pdfmetrics.registerFont(TTFont("HR-BI", bi   or bold))
-            registerFontFamily("HR", normal="HR", bold="HR-B",
-                               italic="HR-I", boldItalic="HR-BI")
-            print(f"[pdf_generator] ✅ Font: {reg}")
+            _safe_register("HR",    reg)
+            _safe_register("HR-B",  bold)
+            _safe_register("HR-I",  ital or reg)
+            _safe_register("HR-BI", bi   or bold)
+            # registerFontFamily is also safe to call multiple times
+            try:
+                registerFontFamily("HR", normal="HR", bold="HR-B",
+                                   italic="HR-I", boldItalic="HR-BI")
+            except Exception:
+                pass
+            print(f"[pdf_generator] ✅ Font registered: {os.path.basename(reg)}")
             return "HR", "HR-B"
         except Exception as e:
             print(f"[pdf_generator] Font error: {e}")
 
-    print(f"[pdf_generator] ⚠️  DejaVuSans not found — add TTF files to assets/ folder")
+    print(f"[pdf_generator] ⚠️  DejaVuSans not found — ₹ may not render correctly")
     return "Helvetica", "Helvetica-Bold"
 
 
@@ -288,8 +304,6 @@ def _doc(pdf_path, compact=False):
 
 # ─────────────────────────────────────────────────────────────
 # PRE-OFFER LETTER — 2 pages
-# Page 1: Intro + Compensation During Probation + Confirmation
-# Page 2: Points to Be Noted (1-5) + Notice Period + Signature
 # ─────────────────────────────────────────────────────────────
 def _pre_offer_pdf(ctx, pdf_path):
     s   = S()
@@ -304,7 +318,7 @@ def _pre_offer_pdf(ctx, pdf_path):
     doc = _doc(pdf_path)
     st  = []
 
-    # ── PAGE 1 ───────────────────────────────────────────────
+    # PAGE 1
     st += _hdr("Pre-Offer Letter")
     st.append(Paragraph(
         f'This is to formally acknowledge that <b>{sal} {nm}</b> has been engaged with '
@@ -338,7 +352,7 @@ def _pre_offer_pdf(ctx, pdf_path):
         "Applicable Statutory Benefits, including gratuity, as per prevailing laws "
         "and company policy", s))
 
-    # ── PAGE 2 ───────────────────────────────────────────────
+    # PAGE 2
     st.append(PageBreak())
     st += _hdr("Points to Be Noted")
 
@@ -487,6 +501,52 @@ def _offer_letter_pdf(ctx, pdf_path):
     doj = ctx.get("joining_date", "")
     ld  = ctx.get("letter_date", "")
 
+    # Dynamic R&R based on role
+    role_rr = {
+        "Data Analytics Trainee": [
+            "Data collection, cleaning, and preprocessing",
+            "Building reports and dashboards using Power BI / Excel",
+            "End-to-end business development activities",
+            "Client engagement and lead generation",
+            "Completion of mandatory technical and professional training programs",
+        ],
+        "Data Analyst": [
+            "Data analysis and visualization using Python, SQL, and Power BI",
+            "Building and maintaining analytical dashboards",
+            "Generating insights from large datasets",
+            "Preparing analytical reports for management",
+            "Collaborating with cross-functional teams on data projects",
+        ],
+        "Business Analyst": [
+            "Requirement gathering and business process analysis",
+            "Preparation of BRD, FRD, and project documentation",
+            "Coordination between technical and business teams",
+            "Data analysis and reporting for stakeholders",
+            "Follow-ups and achievement of assigned targets",
+        ],
+        "Software Developer": [
+            "Designing, developing, and maintaining software applications",
+            "Writing clean, scalable, and well-documented code",
+            "Participating in code reviews and technical discussions",
+            "Debugging and resolving software defects",
+            "Collaborating with product and design teams",
+        ],
+        "HR Executive": [
+            "End-to-end recruitment and talent acquisition",
+            "Onboarding and induction of new employees",
+            "Maintaining employee records and HR documentation",
+            "Coordinating performance management activities",
+            "Handling employee queries and HR operations",
+        ],
+    }
+    rr_items = role_rr.get(rol, [
+        "End-to-end business development activities",
+        "Client engagement and lead generation",
+        "Follow-ups and achievement of assigned targets",
+        "Preparation of reports and dashboards",
+        "Completion of mandatory technical and professional training programs",
+    ])
+
     doc = _doc(pdf_path)
     st  = []
 
@@ -547,13 +607,7 @@ def _offer_letter_pdf(ctx, pdf_path):
     st += _hdr("Offer Letter")
     st.append(Paragraph("<b>Roles &amp; Responsibilities</b>", s["SH"]))
     st.append(Paragraph("During the tenure, the employee is expected to actively participate in:", s["B"]))
-    for item in [
-        "End-to-end business development activities",
-        "Client engagement and lead generation",
-        "Follow-ups and achievement of assigned targets",
-        "Preparation of reports and dashboards",
-        "Completion of mandatory technical and professional training programs",
-    ]:
+    for item in rr_items:
         st.append(_bul(item, s))
 
     st.append(Spacer(1, 4*mm))
