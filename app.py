@@ -153,7 +153,7 @@ div[data-testid="stTabs"] > div:last-child {
     padding: 24px;
 }
 
-/* ── Buttons ── */
+/* ── Generate buttons ── */
 .stButton > button {
     background: #1a56b0;
     color: white !important;
@@ -170,17 +170,33 @@ div[data-testid="stTabs"] > div:last-child {
     background: #1344a0 !important;
     color: white !important;
 }
+
+/* ── Download buttons — ALWAYS show blue text ── */
 .stDownloadButton > button {
-    background: #f0f5ff;
+    background: #f0f5ff !important;
     color: #1a56b0 !important;
-    border: 1px solid #1a56b0;
-    border-radius: 7px;
-    font-weight: 600;
-    font-size: 13px;
-    width: 100%;
+    border: 1.5px solid #1a56b0 !important;
+    border-radius: 7px !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    width: 100% !important;
+    transition: background 0.2s !important;
 }
 .stDownloadButton > button:hover {
-    background: #e0ecff !important;
+    background: #dbeafe !important;
+    color: #1344a0 !important;
+    border-color: #1344a0 !important;
+}
+.stDownloadButton > button:focus {
+    background: #f0f5ff !important;
+    color: #1a56b0 !important;
+    border-color: #1a56b0 !important;
+}
+/* Fix for white text bug — override any inherited white color */
+.stDownloadButton > button p,
+.stDownloadButton > button span,
+.stDownloadButton > button div {
+    color: #1a56b0 !important;
 }
 
 /* ── Form labels ── */
@@ -384,10 +400,10 @@ with tab1:
         col_s, col_i = st.columns(2)
         with col_s:
             stipend_pre = st.selectbox("Fixed Stipend / Base Pay",
-                ["₹10,000", "₹12,000", "₹15,000"], key="pre_stipend")
+                ["\u20b910,000", "\u20b912,000", "\u20b915,000"], key="pre_stipend")
         with col_i:
             incentive_pre = st.selectbox("Performance Incentive (Up to)",
-                ["₹15,000", "₹18,000", "₹20,000"], key="pre_incentive")
+                ["\u20b915,000", "\u20b918,000", "\u20b920,000"], key="pre_incentive")
 
     with col2:
         st.markdown('<div class="field-group-label">Preview &amp; Generate</div>', unsafe_allow_html=True)
@@ -432,16 +448,16 @@ with tab1:
 
         if st.session_state.get("pre_result"):
             r = st.session_state["pre_result"]
-            st.markdown(f'<div class="aa-success">Letter ready: {r["filename"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="aa-success">\u2705 Letter ready: {r["filename"]}</div>', unsafe_allow_html=True)
             col_dl1, col_dl2 = st.columns(2)
             with col_dl1:
-                st.download_button("Download DOCX", data=read_file_bytes(r["docx_path"]),
+                st.download_button("\u2B07\uFE0F Download DOCX", data=read_file_bytes(r["docx_path"]),
                     file_name=f"{r['filename']}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     key="persist_pre_docx")
             with col_dl2:
                 if r.get("pdf_path") and os.path.exists(r["pdf_path"]):
-                    st.download_button("Download PDF", data=read_file_bytes(r["pdf_path"]),
+                    st.download_button("\u2B07\uFE0F Download PDF", data=read_file_bytes(r["pdf_path"]),
                         file_name=f"{r['filename']}.pdf", mime="application/pdf",
                         key="persist_pre_pdf")
 
@@ -485,14 +501,21 @@ with tab2:
 
         if parse_salary_btn and salary_prompt:
             with st.spinner("Parsing salary structure..."):
-                # Groq computes actual rupee amounts — no separate calculate call needed
-                result = parse_salary_prompt_groq(salary_prompt, model=groq_model)
-                st.session_state.salary_params = result
-                st.session_state.salary_result = result
+                params = parse_salary_prompt_groq(salary_prompt, model=groq_model)
+                # Now calculate proper breakup
+                sal = calculate_salary_breakup(
+                    ctc_annual=params["ctc_annual"],
+                    base_percent=params.get("base_percent", 40),
+                    hra_percent=params.get("hra_percent", 20),
+                    pf_percent=params.get("pf_percent", 5.0),
+                    variable_percent=params.get("variable_percent", 10),
+                )
+                st.session_state.salary_params = params
+                st.session_state.salary_result = sal
 
         if st.session_state.salary_params:
             p = st.session_state.salary_params
-            pf_display = "Not applicable" if p["pf_percent"] == 0 else f"{p['pf_percent']}% of Basic"
+            pf_display = "Not applicable" if p.get("pf_percent", 0) == 0 else f"{p.get('pf_percent')}% of Basic"
             st.markdown(f"""
             <div class="parsed-box">
                 <span>CTC:</span> &#8377;{p['ctc_annual']:,.0f} &nbsp;|&nbsp;
@@ -535,10 +558,10 @@ with tab2:
                         department=dept_offer,
                         joining_date=joining_date_offer.strftime("%d-%m-%Y"),
                         ctc_annual=p["ctc_annual"],
-                        base_percent=p["base_percent"],
-                        hra_percent=p["hra_percent"],
-                        pf_percent=p["pf_percent"],
-                        variable_percent=p["variable_percent"],
+                        base_percent=p.get("base_percent", 40),
+                        hra_percent=p.get("hra_percent", 20),
+                        pf_percent=p.get("pf_percent", 5.0),
+                        variable_percent=p.get("variable_percent", 10),
                         letter_date=letter_date_offer.strftime("%d-%m-%Y"),
                     )
                 if result["success"]:
@@ -553,16 +576,16 @@ with tab2:
 
         if st.session_state.get("offer_result"):
             r = st.session_state["offer_result"]
-            st.markdown(f'<div class="aa-success">Letter ready: {r["filename"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="aa-success">\u2705 Letter ready: {r["filename"]}</div>', unsafe_allow_html=True)
             col_dl1, col_dl2 = st.columns(2)
             with col_dl1:
-                st.download_button("Download DOCX", data=read_file_bytes(r["docx_path"]),
+                st.download_button("\u2B07\uFE0F Download DOCX", data=read_file_bytes(r["docx_path"]),
                     file_name=f"{r['filename']}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     key="persist_offer_docx")
             with col_dl2:
                 if r.get("pdf_path") and os.path.exists(r["pdf_path"]):
-                    st.download_button("Download PDF", data=read_file_bytes(r["pdf_path"]),
+                    st.download_button("\u2B07\uFE0F Download PDF", data=read_file_bytes(r["pdf_path"]),
                         file_name=f"{r['filename']}.pdf", mime="application/pdf",
                         key="persist_offer_pdf")
 
@@ -586,19 +609,17 @@ with tab3:
         with col_b:
             reg_no = st.text_input("Reg. No.", key="intern_reg")
 
-        college   = st.text_input("College / Institution", key="intern_college")
+        college = st.text_input("College / Institution", key="intern_college")
 
         col_c, col_d = st.columns(2)
         with col_c:
             dept_intern = st.selectbox("Department", get_departments(), key="intern_dept")
         with col_d:
-            # Role selectbox — key change triggers responsibilities refresh
             role_intern = st.selectbox("Role", get_roles(), key="intern_role")
 
     with col2:
         st.markdown('<div class="field-group-label">Internship Period</div>', unsafe_allow_html=True)
 
-        # ── Date mode toggle ──────────────────────────────────
         date_mode = st.radio(
             "Date Entry Mode",
             ["Manual (pick start & end)", "Auto (start + duration)"],
@@ -612,14 +633,13 @@ with tab3:
             with col_b:
                 end_date_intern = st.date_input("End Date", value=date.today(), key="intern_end_manual")
 
-            # Auto-compute duration text from dates
-            delta = relativedelta(end_date_intern, start_date_intern)
+            delta  = relativedelta(end_date_intern, start_date_intern)
             months = delta.months + delta.years * 12
             days   = delta.days
+            DURATION_WORDS = {1:"one",2:"two",3:"three",4:"four",5:"five",
+                              6:"six",7:"seven",8:"eight",9:"nine",10:"ten",
+                              11:"eleven",12:"twelve"}
             if months > 0 and days == 0:
-                DURATION_WORDS = {1:"one",2:"two",3:"three",4:"four",5:"five",
-                                  6:"six",7:"seven",8:"eight",9:"nine",10:"ten",
-                                  11:"eleven",12:"twelve"}
                 duration_intern = f"{DURATION_WORDS.get(months, str(months))} month{'s' if months > 1 else ''}"
             elif months > 0:
                 duration_intern = f"{months} month{'s' if months > 1 else ''} and {days} day{'s' if days > 1 else ''}"
@@ -630,14 +650,13 @@ with tab3:
             st.markdown(f'<div class="dur-badge">Duration: {duration_intern}</div>', unsafe_allow_html=True)
 
         else:
-            start_date_intern = st.date_input("Start Date", value=date.today(), key="intern_start_auto")
-            duration_months_n = st.selectbox("Duration", [1, 2, 3, 4, 6], key="intern_dur_months",
-                                              format_func=lambda x: f"{x} month{'s' if x > 1 else ''}")
-            end_date_intern = start_date_intern + relativedelta(months=duration_months_n)
-
-            DURATION_WORDS = {1:"one",2:"two",3:"three",4:"four",5:"five",
-                              6:"six",7:"seven",8:"eight",9:"nine",10:"ten"}
-            duration_intern = f"{DURATION_WORDS.get(duration_months_n, str(duration_months_n))} month{'s' if duration_months_n > 1 else ''}"
+            start_date_intern  = st.date_input("Start Date", value=date.today(), key="intern_start_auto")
+            duration_months_n  = st.selectbox("Duration", [1, 2, 3, 4, 6], key="intern_dur_months",
+                                               format_func=lambda x: f"{x} month{'s' if x > 1 else ''}")
+            end_date_intern    = start_date_intern + relativedelta(months=duration_months_n)
+            DURATION_WORDS     = {1:"one",2:"two",3:"three",4:"four",5:"five",
+                                  6:"six",7:"seven",8:"eight",9:"nine",10:"ten"}
+            duration_intern    = f"{DURATION_WORDS.get(duration_months_n, str(duration_months_n))} month{'s' if duration_months_n > 1 else ''}"
             st.markdown(
                 f'<div class="dur-badge">'
                 f'End Date: {end_date_intern.strftime("%d %b %Y")} &nbsp;|&nbsp; Duration: {duration_intern}'
@@ -645,11 +664,9 @@ with tab3:
 
         letter_date_intern = st.date_input("Letter Date", value=date.today(), key="intern_letter_date")
 
-        # ── Responsibilities — auto-refresh on role change ────
         st.markdown('<div class="field-group-label">Responsibilities</div>', unsafe_allow_html=True)
         st.caption("Auto-filled from selected role — editable")
 
-        # Use role as key suffix so text area resets when role changes
         auto_resp    = get_responsibilities_for_role(role_intern)
         default_resp = "\n".join(auto_resp)
 
@@ -657,7 +674,7 @@ with tab3:
             "Responsibilities",
             value=default_resp,
             height=140,
-            key=f"intern_resp_{role_intern}",   # KEY FIX: changes with role → auto-refreshes
+            key=f"intern_resp_{role_intern}",
             label_visibility="collapsed"
         )
 
@@ -699,16 +716,16 @@ with tab3:
 
         if st.session_state.get("intern_result"):
             r = st.session_state["intern_result"]
-            st.markdown(f'<div class="aa-success">Certificate ready: {r["filename"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="aa-success">\u2705 Certificate ready: {r["filename"]}</div>', unsafe_allow_html=True)
             col_dl1, col_dl2 = st.columns(2)
             with col_dl1:
-                st.download_button("Download DOCX", data=read_file_bytes(r["docx_path"]),
+                st.download_button("\u2B07\uFE0F Download DOCX", data=read_file_bytes(r["docx_path"]),
                     file_name=f"{r['filename']}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     key="persist_intern_docx")
             with col_dl2:
                 if r.get("pdf_path") and os.path.exists(r["pdf_path"]):
-                    st.download_button("Download PDF", data=read_file_bytes(r["pdf_path"]),
+                    st.download_button("\u2B07\uFE0F Download PDF", data=read_file_bytes(r["pdf_path"]),
                         file_name=f"{r['filename']}.pdf", mime="application/pdf",
                         key="persist_intern_pdf")
 
@@ -741,12 +758,12 @@ with tab4:
                 dl1, dl2 = st.columns(2)
                 if record.get("docx_path") and os.path.exists(record["docx_path"]):
                     with dl1:
-                        st.download_button("DOCX", data=read_file_bytes(record["docx_path"]),
+                        st.download_button("⬇️ DOCX", data=read_file_bytes(record["docx_path"]),
                             file_name=f"{record['filename']}.docx",
                             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                             key=f"hist_docx_{i}")
                 if record.get("pdf_path") and os.path.exists(record["pdf_path"]):
                     with dl2:
-                        st.download_button("PDF", data=read_file_bytes(record["pdf_path"]),
+                        st.download_button("⬇️ PDF", data=read_file_bytes(record["pdf_path"]),
                             file_name=f"{record['filename']}.pdf",
                             mime="application/pdf", key=f"hist_pdf_{i}")
