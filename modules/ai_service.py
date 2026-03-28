@@ -221,16 +221,21 @@ def _validate_computed_salary(r: dict) -> dict:
     known_annual   = (basic_m + hra_m + pf_m) * 12 + variable_a
     special_annual = ctc - known_annual
 
-    # If negative, reduce pf then hra
+    # If negative, PF and HRA come FROM basic (not additional to it)
+    # Reduce basic accordingly, keep PF and HRA intact
     if special_annual < 0:
         excess = -special_annual
-        pf_reduce = min(pf_m * 12, excess)
-        pf_m = int((pf_m * 12 - pf_reduce) / 12)
-        excess -= pf_reduce
-        if excess > 0:
-            hra_reduce = min(hra_m * 12, excess)
-            hra_m = int((hra_m * 12 - hra_reduce) / 12)
+        # First try: reduce basic to absorb excess (PF/HRA come from within basic)
+        basic_reduce = min(basic_m * 12, excess)
+        basic_m = int((basic_m * 12 - basic_reduce) / 12)
         special_annual = ctc - (basic_m + hra_m + pf_m) * 12 - variable_a
+        # If still negative (very edge case), then reduce pf
+        if special_annual < 0:
+            excess2 = -special_annual
+            pf_m = max(0, pf_m - int(excess2 / 12) - 1)
+            special_annual = ctc - (basic_m + hra_m + pf_m) * 12 - variable_a
+        if special_annual < 0:
+            special_annual = 0
 
     special_m = int(special_annual / 12)
     # Fix rounding so gross×12 + variable = CTC exactly
@@ -372,11 +377,11 @@ def _fallback_salary_parse(prompt_text: str) -> dict:
     special_a = ctc - basic_a - hra_a - pf_a - var_a
     if special_a < 0:
         excess = -special_a
-        pf_cut = min(pf_a, excess); pf_a -= pf_cut; excess -= pf_cut
+        # Reduce HRA first (it's a default, not explicitly set by HR)
+        hra_cut = min(hra_a, excess); hra_a -= hra_cut; excess -= hra_cut
+        # Then reduce basic (PF and variable stay intact — explicitly requested)
         if excess > 0:
-            hra_cut = min(hra_a, excess); hra_a -= hra_cut; excess -= hra_cut
-        if excess > 0:
-            var_cut = min(var_a, excess); var_a -= var_cut
+            basic_cut = min(basic_a - 1, excess); basic_a -= basic_cut; excess -= basic_cut
         special_a = max(0, ctc - basic_a - hra_a - pf_a - var_a)
 
     return _validate_computed_salary({
