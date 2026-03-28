@@ -114,11 +114,19 @@ def _safe_register(name, path):
 def _register_fonts():
     """
     Register DejaVuSans for ₹ symbol support.
+    Always safe to call multiple times.
     Priority:
       1. assets/ folder  ← committed to repo, always works on Streamlit Cloud
       2. System paths    ← works locally on Linux
       3. Matplotlib bundled fonts ← last resort fallback
     """
+    # If already registered and working, return immediately
+    try:
+        from reportlab.pdfbase import pdfmetrics as _pm
+        if "HR" in _pm.getRegisteredFontNames() and "HR-B" in _pm.getRegisteredFontNames():
+            return "HR", "HR-B"
+    except Exception:
+        pass
     MATPLOTLIB_FONTS = "/usr/local/lib/python3.12/dist-packages/matplotlib/mpl-data/fonts/ttf"
 
     def _find(*candidates):
@@ -154,21 +162,27 @@ def _register_fonts():
             _safe_register("HR-B",  bold)
             _safe_register("HR-I",  ital or reg)
             _safe_register("HR-BI", bi   or bold)
-            # registerFontFamily is also safe to call multiple times
             try:
                 registerFontFamily("HR", normal="HR", bold="HR-B",
                                    italic="HR-I", boldItalic="HR-BI")
             except Exception:
                 pass
-            print(f"[pdf_generator] ✅ Font registered: {os.path.basename(reg)}")
+            print(f"[pdf_generator] ✅ Font OK: {reg}")
             return "HR", "HR-B"
         except Exception as e:
-            print(f"[pdf_generator] Font error: {e}")
+            print(f"[pdf_generator] ❌ Font error: {e}")
+    else:
+        print(f"[pdf_generator] ❌ Font NOT FOUND. reg={reg} bold={bold}")
+        print(f"[pdf_generator] ASSETS_DIR={ASSETS_DIR}")
+        print(f"[pdf_generator] ASSETS exists={os.path.exists(ASSETS_DIR)}")
+        if os.path.exists(ASSETS_DIR):
+            print(f"[pdf_generator] ASSETS contents={os.listdir(ASSETS_DIR)}")
 
-    print(f"[pdf_generator] ⚠️  DejaVuSans not found — ₹ may not render correctly")
+    print(f"[pdf_generator] ⚠️ Falling back to Helvetica — ₹ will NOT render")
     return "Helvetica", "Helvetica-Bold"
 
 
+# Call at module load — but also re-called safely if needed
 FR, FB = _register_fonts()
 
 BLACK      = colors.black
