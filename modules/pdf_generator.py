@@ -1,16 +1,23 @@
 """
 pdf_generator.py
-Fixes: bold via registerFontFamily, no extra blank pages, internship single page.
 Analytics Avenue LLP
+Fixes:
+  - ₹ symbol: robust font path resolution for Streamlit Cloud
+  - Internship: fully dynamic role/dept based text
+  - Internship: no hardcoded HR/Talent Acquisition text
 """
 
 import os
+import sys
 from docxtpl import DocxTemplate
 from datetime import datetime
 
-TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "../templates")
-OUTPUT_DIR    = os.path.join(os.path.dirname(__file__), "../output")
-ASSETS_DIR    = os.path.join(os.path.dirname(__file__), "../assets")
+# ── Robust path resolution (works on local + Streamlit Cloud) ─
+BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT  = os.path.dirname(BASE_DIR)
+TEMPLATES_DIR = os.path.join(PROJECT_ROOT, "templates")
+OUTPUT_DIR    = os.path.join(PROJECT_ROOT, "output")
+ASSETS_DIR    = os.path.join(PROJECT_ROOT, "assets")
 
 
 def ensure_output_dir():
@@ -44,61 +51,114 @@ from reportlab.pdfbase.pdfmetrics import registerFontFamily
 from reportlab.pdfgen import canvas
 
 
-# ── Register fonts WITH bold family so <b> tags work ─────────
-# ── Register fonts WITH bold family so <b> tags work ─────────
+# ── Role → dynamic internship text mapping ────────────────────
+ROLE_CONTEXT = {
+    "Talent Acquisition Intern": {
+        "activity":   "Talent Acquisition and HR support activities",
+        "exposure":   "Talent Acquisition processes, recruitment workflow, and basic HR operations",
+    },
+    "Data Analytics Intern": {
+        "activity":   "Data Analytics and business intelligence activities",
+        "exposure":   "data analytics processes, dashboard development, and data-driven reporting",
+    },
+    "Marketing Intern": {
+        "activity":   "Digital Marketing and brand development activities",
+        "exposure":   "digital marketing campaigns, social media management, and market research",
+    },
+    "Business Development Intern": {
+        "activity":   "Business Development and client engagement activities",
+        "exposure":   "business development processes, client engagement, and lead generation",
+    },
+    "Data Analytics Trainee": {
+        "activity":   "Data Analytics and business development activities",
+        "exposure":   "data analytics workflows, reporting, and business development processes",
+    },
+    "HR Executive": {
+        "activity":   "Human Resource management and talent operations",
+        "exposure":   "HR processes, employee lifecycle management, and talent acquisition",
+    },
+    "Business Analyst": {
+        "activity":   "Business Analysis and stakeholder coordination activities",
+        "exposure":   "business analysis processes, requirement gathering, and project coordination",
+    },
+    "Data Analyst": {
+        "activity":   "Data Analysis and visualization activities",
+        "exposure":   "data analysis workflows, visualization tools, and business intelligence reporting",
+    },
+    "Software Developer": {
+        "activity":   "Software Development and technical engineering activities",
+        "exposure":   "software development lifecycle, coding practices, and cross-functional collaboration",
+    },
+}
+
+def _get_role_context(role: str) -> dict:
+    """Return dynamic text for a role, with a safe generic fallback."""
+    if role in ROLE_CONTEXT:
+        return ROLE_CONTEXT[role]
+    # Generic fallback for any unknown role
+    return {
+        "activity": f"{role} activities",
+        "exposure": f"{role.lower()} processes and professional work environment",
+    }
+
+
+# ── Font registration — robust for Streamlit Cloud ───────────
 def _register_fonts():
-    # 1. Local Assets Check (Highest Priority for Rupee Symbol support)
-    # Ensure DejaVuSans.ttf and DejaVuSans-Bold.ttf are in your /assets folder
-    local_reg = os.path.join(ASSETS_DIR, "DejaVuSans.ttf")
-    local_bold = os.path.join(ASSETS_DIR, "DejaVuSans-Bold.ttf")
-    
-    # 2. System Path Check (Fallback)
-    candidates = [
-        # Check local assets first
-        (local_reg, local_bold, None, None),
-        # Linux standard paths
-        (
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf',
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf',
-        ),
-        # Windows standard paths
-        (
-            'C:/Windows/Fonts/arial.ttf',
-            'C:/Windows/Fonts/arialbd.ttf',
-            'C:/Windows/Fonts/ariali.ttf',
-            'C:/Windows/Fonts/arialbi.ttf',
-        ),
+    """
+    Try to register DejaVuSans (supports ₹ symbol).
+    Checks project assets first (most reliable on cloud),
+    then system paths, then falls back to Helvetica.
+    """
+    # All candidate font locations — assets dir checked first
+    reg_candidates = [
+        # 1. Project assets (reliable on Streamlit Cloud)
+        os.path.join(ASSETS_DIR, "DejaVuSans.ttf"),
+        # 2. Linux system path
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        # 3. Windows
+        "C:/Windows/Fonts/arial.ttf",
+    ]
+    bold_candidates = [
+        os.path.join(ASSETS_DIR, "DejaVuSans-Bold.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "C:/Windows/Fonts/arialbd.ttf",
+    ]
+    italic_candidates = [
+        os.path.join(ASSETS_DIR, "DejaVuSans-Oblique.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",
+        "C:/Windows/Fonts/ariali.ttf",
+    ]
+    bolditalic_candidates = [
+        os.path.join(ASSETS_DIR, "DejaVuSans-BoldOblique.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf",
+        "C:/Windows/Fonts/arialbi.ttf",
     ]
 
-    for reg, bold, ital, boldi in candidates:
-        if reg and os.path.exists(reg) and os.path.exists(bold):
-            try:
-                # Register Normal and Bold
-                pdfmetrics.registerFont(TTFont('HR', reg))
-                pdfmetrics.registerFont(TTFont('HR-B', bold))
-                
-                # Register Italic if available, else fallback to Normal
-                if ital and os.path.exists(ital):
-                    pdfmetrics.registerFont(TTFont('HR-I', ital))
-                else:
-                    pdfmetrics.registerFont(TTFont('HR-I', reg))
-                
-                # Register Bold-Italic if available, else fallback to Bold
-                if boldi and os.path.exists(boldi):
-                    pdfmetrics.registerFont(TTFont('HR-BI', boldi))
-                else:
-                    pdfmetrics.registerFont(TTFont('HR-BI', bold))
-                
-                # Map the family so <b> and <i> tags work automatically
-                registerFontFamily('HR', normal='HR', bold='HR-B', italic='HR-I', boldItalic='HR-BI')
-                return 'HR', 'HR-B'
-            except Exception:
-                continue
+    def _find(candidates):
+        for p in candidates:
+            if p and os.path.exists(p):
+                return p
+        return None
 
-    # Fallback to Helvetica if no fonts found (Note: Helvetica does NOT support ₹)
-    return 'Helvetica', 'Helvetica-Bold'
+    reg  = _find(reg_candidates)
+    bold = _find(bold_candidates)
+    ital = _find(italic_candidates)
+    bi   = _find(bolditalic_candidates)
+
+    if reg and bold:
+        try:
+            pdfmetrics.registerFont(TTFont("HR",   reg))
+            pdfmetrics.registerFont(TTFont("HR-B", bold))
+            pdfmetrics.registerFont(TTFont("HR-I", ital  or reg))
+            pdfmetrics.registerFont(TTFont("HR-BI",bi    or bold))
+            registerFontFamily("HR", normal="HR", bold="HR-B", italic="HR-I", boldItalic="HR-BI")
+            print(f"[pdf_generator] Font loaded: {reg}")
+            return "HR", "HR-B"
+        except Exception as e:
+            print(f"[pdf_generator] Font registration failed: {e}")
+
+    print(f"[pdf_generator] WARNING: DejaVuSans not found — ₹ symbol may not render. ASSETS_DIR={ASSETS_DIR}")
+    return "Helvetica", "Helvetica-Bold"
 
 
 FR, FB = _register_fonts()
@@ -115,10 +175,10 @@ PAGE_W, PAGE_H = A4
 LM = 2.0*cm; RM = 2.0*cm; TM = 1.2*cm; BM = 2.0*cm
 CW = PAGE_W - LM - RM
 
-# ── Border at page edge ───────────────────────────────────────
+
+# ── Border canvas ─────────────────────────────────────────────
 class BC(canvas.Canvas):
     def showPage(self):
-        # Draw border on current page BEFORE moving to next
         self.saveState()
         self.setStrokeColor(BORDER_CLR)
         self.setLineWidth(2)
@@ -128,17 +188,16 @@ class BC(canvas.Canvas):
         super().showPage()
 
     def save(self):
-        # Do NOT draw border here — showPage() already handled all pages
         super().save()
 
 
 class BDT(SimpleDocTemplate):
     def build(self, flowables, **kw):
-        kw['canvasmaker'] = BC
+        kw["canvasmaker"] = BC
         super().build(flowables, **kw)
 
 
-# ── Styles — use FR so <b> tags resolve to HR-B ──────────────
+# ── Styles ────────────────────────────────────────────────────
 def S():
     s = getSampleStyleSheet()
     def add(n, **kw):
@@ -161,7 +220,6 @@ def _lh():
         os.path.join(ASSETS_DIR, "letterhead.png"),
     ]:
         if os.path.exists(p):
-            # Slightly smaller height to save space
             img = Image(p, width=CW, height=CW*(480/2482))
             img.hAlign = "LEFT"
             return img
@@ -180,28 +238,15 @@ def _sig():
     return None
 
 
-def _hdr(title, compact=False):
+def _hdr(title):
     s = S()
     items = []
     lh = _lh()
     if lh:
-        if compact:
-            from reportlab.platypus import Image as Img
-            for p in [
-                os.path.join(ASSETS_DIR, "letterhead_final.png"),
-                os.path.join(ASSETS_DIR, "letterhead.png"),
-            ]:
-                if os.path.exists(p):
-                    img = Img(p, width=CW, height=CW*(500/2482))
-                    img.hAlign = "LEFT"
-                    items.append(img)
-                    break
-        else:
-            items.append(lh)
+        items.append(lh)
     else:
         items.append(Paragraph(
-            '<font color="#064b86" size="16"><b>Analytics Avenue LLP</b></font>',
-            s["B"]
+            '<font color="#064b86" size="16"><b>Analytics Avenue LLP</b></font>', s["B"]
         ))
     items.append(Spacer(1, 2*mm))
     items.append(Paragraph(title, s["TIT"]))
@@ -224,34 +269,19 @@ def _pronoun(salutation):
     return {"sub": "she", "obj": "her", "pos": "her", "cap": "Her"}
 
 
-def _sig_block(s, company="Analytics Avenue", compact=False):
+def _sig_block(s, company="Analytics Avenue"):
     items = []
     sig = _sig()
     if sig:
-        if compact:
-            from reportlab.platypus import Image as Img
-            for p in [
-                os.path.join(ASSETS_DIR, "signature_final.png"),
-                os.path.join(ASSETS_DIR, "signature.png"),
-            ]:
-                if os.path.exists(p):
-                    img = Img(p, width=2.8*cm, height=1.3*cm)
-                    img.hAlign = "LEFT"
-                    items.append(img)
-                    break
-        else:
-            items.append(sig)
+        items.append(sig)
     items += [
         Paragraph("<b>For ANALYTICS AVENUE LLP</b>", s["SGN"]),
-        Spacer(1, 2*mm if compact else 3*mm),
+        Spacer(1, 3*mm),
         Paragraph("<b>Regards,</b>",       s["SGN"]),
         Paragraph("<b>Aswath R</b>",       s["SGN"]),
         Paragraph("<b>Human Resource</b>", s["SGN"]),
         Paragraph(f"<b>{company}</b>",     s["SGN"]),
-        Paragraph(
-            "<i>(Empower your business with data driven insights)</i>",
-            s["ITA"]
-        ),
+        Paragraph("<i>(Empower your business with data driven insights)</i>", s["ITA"]),
     ]
     return items
 
@@ -267,7 +297,7 @@ def _doc(pdf_path, compact=False):
 
 
 # ─────────────────────────────────────────────────────────────
-# PRE-OFFER LETTER — 3 pages exactly, no extra
+# PRE-OFFER LETTER
 # ─────────────────────────────────────────────────────────────
 def _pre_offer_pdf(ctx, pdf_path):
     s   = S()
@@ -275,8 +305,8 @@ def _pre_offer_pdf(ctx, pdf_path):
     nm  = ctx.get("candidate_name", "")
     rol = ctx.get("role", "")
     doj = ctx.get("joining_date", "")
-    stipend   = ctx.get("stipend", "₹10,000")
-    incentive = ctx.get("incentive", "₹15,000")
+    stipend   = ctx.get("stipend", "\u20b910,000")
+    incentive = ctx.get("incentive", "\u20b915,000")
     p   = _pronoun(sal)
 
     doc = _doc(pdf_path)
@@ -293,7 +323,7 @@ def _pre_offer_pdf(ctx, pdf_path):
     st.append(Spacer(1, 3*mm))
     st.append(Paragraph("<b>Compensation During Probation</b>", s["SH"]))
     st.append(Paragraph(
-        "During the probation period, data analytics trainee will be entitled to the "
+        "During the probation period, the candidate will be entitled to the "
         "following compensation:", s["B"]))
     st.append(_bul(f"<b>Fixed Stipend / Base Pay: {stipend} per month</b>", s))
     st.append(_bul(
@@ -371,19 +401,10 @@ def _pre_offer_pdf(ctx, pdf_path):
 
 
 # ─────────────────────────────────────────────────────────────
-# INTERNSHIP — single page, no overflow
+# INTERNSHIP — fully dynamic by role & department
 # ─────────────────────────────────────────────────────────────
 def _internship_pdf(ctx, pdf_path):
-    # Compact styles for internship to fit 1 page
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.enums import TA_JUSTIFY
-    s = S()
-    # Override with compact sizes
-    # Normal styles — same as pre-offer, good spacing
-    from reportlab.lib.styles import ParagraphStyle as PS
-    from reportlab.lib.enums import TA_JUSTIFY as TAJ, TA_CENTER as TAC
-    BC_style   = PS(name="BC2",   fontName=FR, fontSize=10.5, leading=16, textColor=BLACK, alignment=TAJ, spaceAfter=10)
-    BSUB_style = PS(name="BSUB2", fontName=FB, fontSize=12,   leading=18, textColor=BLACK, alignment=TAC, spaceAfter=10)
+    s    = S()
     sal  = ctx.get("salutation", "Ms.")
     nm   = ctx.get("intern_name", "")
     reg  = ctx.get("reg_no", "")
@@ -396,7 +417,12 @@ def _internship_pdf(ctx, pdf_path):
     resp = ctx.get("responsibilities", [])
     p    = _pronoun(sal)
 
-    # College line — always prefix department with "Department of" if not already
+    # ── Dynamic role-based text ───────────────────────────────
+    rc       = _get_role_context(rol)
+    activity = rc["activity"]   # e.g. "Data Analytics and business intelligence activities"
+    exposure = rc["exposure"]   # e.g. "data analytics processes, dashboard development..."
+
+    # ── College / dept line ───────────────────────────────────
     if col and dept:
         dept_display = dept if dept.lower().startswith("department") else f"Department of {dept}"
         college_line = f"{col}, {dept_display}"
@@ -406,6 +432,12 @@ def _internship_pdf(ctx, pdf_path):
         college_line = f"Department of {dept}"
     else:
         college_line = ""
+
+    # Paragraph styles for internship
+    from reportlab.lib.styles import ParagraphStyle as PS
+    from reportlab.lib.enums import TA_JUSTIFY as TAJ, TA_CENTER as TAC
+    BC_style   = PS(name="BC2",   fontName=FR, fontSize=10.5, leading=16, textColor=BLACK, alignment=TAJ, spaceAfter=10)
+    BSUB_style = PS(name="BSUB2", fontName=FB, fontSize=12,   leading=18, textColor=BLACK, alignment=TAC, spaceAfter=10)
 
     doc = _doc(pdf_path)
     st  = []
@@ -423,7 +455,7 @@ def _internship_pdf(ctx, pdf_path):
     st.append(Paragraph(
         f"{p['cap']} internship was carried out for a period of <b>{dur}</b>, from "
         f"<b>{std}</b> to <b>{end}</b>, during which {p['sub']} was actively "
-        f"involved in <b>Talent Acquisition and HR support activities</b> under the "
+        f"involved in <b>{activity}</b> under the "
         f"guidance and supervision of the internal team.", BC_style))
 
     if resp:
@@ -436,7 +468,7 @@ def _internship_pdf(ctx, pdf_path):
 
     st.append(Paragraph(
         f"This internship provided {p['obj']} with practical exposure to "
-        f"<b>Talent Acquisition processes</b>, recruitment workflow, and basic HR operations "
+        f"<b>{exposure}</b> "
         f"in a professional work environment.", BC_style))
 
     st.append(Paragraph(
@@ -481,18 +513,18 @@ def _offer_letter_pdf(ctx, pdf_path):
 
     st.append(Paragraph("<b>Compensation &amp; Benefits</b>", s["SH"]))
     st.append(Paragraph(
-        f"Your total Cost to Company (CTC) is <b>{ctx.get('ctc_lpa','')} "
-        f"({ctx.get('ctc_annual_str','')} per annum)</b>, structured as follows:", s["B"]))
+        f"Your total Cost to Company (CTC) is <b>{ctx.get('ctc_lpa', '')} "
+        f"({ctx.get('ctc_annual_str', '')} per annum)</b>, structured as follows:", s["B"]))
 
     tdata = [
-        ["Salary Component",                       "Monthly Amount"],
-        ["Basic Salary",                           ctx.get("basic_monthly_str","")],
-        ["House Rent Allowance (HRA)",             ctx.get("hra_monthly_str","")],
-        ["Provident Fund \u2014 Employer",         ctx.get("pf_monthly_str","")],
-        ["Special Allowance",                      ctx.get("special_allowance_monthly_str","")],
-        ["Gross Monthly (Fixed)",                  ctx.get("gross_monthly_str","")],
-        ["Variable Pay (Annual, Perf-Based)",      ctx.get("variable_annual_str","")],
-        ["Total CTC (Annual)",                     ctx.get("ctc_annual_str","")],
+        ["Salary Component",                  "Monthly Amount"],
+        ["Basic Salary",                      ctx.get("basic_monthly_str", "")],
+        ["House Rent Allowance (HRA)",        ctx.get("hra_monthly_str", "")],
+        ["Provident Fund \u2014 Employer",    ctx.get("pf_monthly_str", "")],
+        ["Special Allowance",                 ctx.get("special_allowance_monthly_str", "")],
+        ["Gross Monthly (Fixed)",             ctx.get("gross_monthly_str", "")],
+        ["Variable Pay (Annual, Perf-Based)", ctx.get("variable_annual_str", "")],
+        ["Total CTC (Annual)",                ctx.get("ctc_annual_str", "")],
     ]
     cw  = [CW*0.70, CW*0.30]
     tbl = Table(tdata, colWidths=cw)
