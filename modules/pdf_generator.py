@@ -2,17 +2,15 @@
 pdf_generator.py
 Analytics Avenue LLP
 Fixes:
-  - ₹ symbol: robust font path resolution for Streamlit Cloud
+  - ₹ symbol: assets/ folder fonts committed to repo (Streamlit Cloud compatible)
+  - Pre-Offer: 2 pages (merged Notice Period + signature into page 2)
   - Internship: fully dynamic role/dept based text
-  - Internship: no hardcoded HR/Talent Acquisition text
 """
 
 import os
-import sys
 from docxtpl import DocxTemplate
 from datetime import datetime
 
-# ── Robust path resolution (works on local + Streamlit Cloud) ─
 BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT  = os.path.dirname(BASE_DIR)
 TEMPLATES_DIR = os.path.join(PROJECT_ROOT, "templates")
@@ -51,113 +49,107 @@ from reportlab.pdfbase.pdfmetrics import registerFontFamily
 from reportlab.pdfgen import canvas
 
 
-# ── Role → dynamic internship text mapping ────────────────────
+# ── Role → dynamic internship text ───────────────────────────
 ROLE_CONTEXT = {
     "Talent Acquisition Intern": {
-        "activity":   "Talent Acquisition and HR support activities",
-        "exposure":   "Talent Acquisition processes, recruitment workflow, and basic HR operations",
+        "activity": "Talent Acquisition and HR support activities",
+        "exposure": "Talent Acquisition processes, recruitment workflow, and basic HR operations",
     },
     "Data Analytics Intern": {
-        "activity":   "Data Analytics and business intelligence activities",
-        "exposure":   "data analytics processes, dashboard development, and data-driven reporting",
+        "activity": "Data Analytics and business intelligence activities",
+        "exposure": "data analytics processes, dashboard development, and data-driven reporting",
     },
     "Marketing Intern": {
-        "activity":   "Digital Marketing and brand development activities",
-        "exposure":   "digital marketing campaigns, social media management, and market research",
+        "activity": "Digital Marketing and brand development activities",
+        "exposure": "digital marketing campaigns, social media management, and market research",
     },
     "Business Development Intern": {
-        "activity":   "Business Development and client engagement activities",
-        "exposure":   "business development processes, client engagement, and lead generation",
+        "activity": "Business Development and client engagement activities",
+        "exposure": "business development processes, client engagement, and lead generation",
     },
     "Data Analytics Trainee": {
-        "activity":   "Data Analytics and business development activities",
-        "exposure":   "data analytics workflows, reporting, and business development processes",
+        "activity": "Data Analytics and business development activities",
+        "exposure": "data analytics workflows, reporting, and business development processes",
     },
     "HR Executive": {
-        "activity":   "Human Resource management and talent operations",
-        "exposure":   "HR processes, employee lifecycle management, and talent acquisition",
+        "activity": "Human Resource management and talent operations",
+        "exposure": "HR processes, employee lifecycle management, and talent acquisition",
     },
     "Business Analyst": {
-        "activity":   "Business Analysis and stakeholder coordination activities",
-        "exposure":   "business analysis processes, requirement gathering, and project coordination",
+        "activity": "Business Analysis and stakeholder coordination activities",
+        "exposure": "business analysis processes, requirement gathering, and project coordination",
     },
     "Data Analyst": {
-        "activity":   "Data Analysis and visualization activities",
-        "exposure":   "data analysis workflows, visualization tools, and business intelligence reporting",
+        "activity": "Data Analysis and visualization activities",
+        "exposure": "data analysis workflows, visualization tools, and business intelligence reporting",
     },
     "Software Developer": {
-        "activity":   "Software Development and technical engineering activities",
-        "exposure":   "software development lifecycle, coding practices, and cross-functional collaboration",
+        "activity": "Software Development and technical engineering activities",
+        "exposure": "software development lifecycle, coding practices, and cross-functional collaboration",
     },
 }
 
 def _get_role_context(role: str) -> dict:
-    """Return dynamic text for a role, with a safe generic fallback."""
     if role in ROLE_CONTEXT:
         return ROLE_CONTEXT[role]
-    # Generic fallback for any unknown role
     return {
         "activity": f"{role} activities",
         "exposure": f"{role.lower()} processes and professional work environment",
     }
 
 
-# ── Font registration — robust for Streamlit Cloud ───────────
+# ── Font registration ─────────────────────────────────────────
 def _register_fonts():
     """
-    Try to register DejaVuSans (supports ₹ symbol).
-    Checks project assets first (most reliable on cloud),
-    then system paths, then falls back to Helvetica.
+    Register DejaVuSans for ₹ symbol support.
+    Priority:
+      1. assets/ folder  ← committed to repo, always works on Streamlit Cloud
+      2. System paths    ← works locally on Linux
+      3. Matplotlib bundled fonts ← fallback, present in most Python envs
     """
-    # All candidate font locations — assets dir checked first
-    reg_candidates = [
-        # 1. Project assets (reliable on Streamlit Cloud)
-        os.path.join(ASSETS_DIR, "DejaVuSans.ttf"),
-        # 2. Linux system path
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        # 3. Windows
-        "C:/Windows/Fonts/arial.ttf",
-    ]
-    bold_candidates = [
-        os.path.join(ASSETS_DIR, "DejaVuSans-Bold.ttf"),
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "C:/Windows/Fonts/arialbd.ttf",
-    ]
-    italic_candidates = [
-        os.path.join(ASSETS_DIR, "DejaVuSans-Oblique.ttf"),
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",
-        "C:/Windows/Fonts/ariali.ttf",
-    ]
-    bolditalic_candidates = [
-        os.path.join(ASSETS_DIR, "DejaVuSans-BoldOblique.ttf"),
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf",
-        "C:/Windows/Fonts/arialbi.ttf",
-    ]
+    MATPLOTLIB_FONTS = "/usr/local/lib/python3.12/dist-packages/matplotlib/mpl-data/fonts/ttf"
 
-    def _find(candidates):
+    def _find(*candidates):
         for p in candidates:
             if p and os.path.exists(p):
                 return p
         return None
 
-    reg  = _find(reg_candidates)
-    bold = _find(bold_candidates)
-    ital = _find(italic_candidates)
-    bi   = _find(bolditalic_candidates)
+    reg  = _find(
+        os.path.join(ASSETS_DIR, "DejaVuSans.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        os.path.join(MATPLOTLIB_FONTS, "DejaVuSans.ttf"),
+    )
+    bold = _find(
+        os.path.join(ASSETS_DIR, "DejaVuSans-Bold.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        os.path.join(MATPLOTLIB_FONTS, "DejaVuSans-Bold.ttf"),
+    )
+    ital = _find(
+        os.path.join(ASSETS_DIR, "DejaVuSans-Oblique.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",
+        os.path.join(MATPLOTLIB_FONTS, "DejaVuSans-Oblique.ttf"),
+    )
+    bi   = _find(
+        os.path.join(ASSETS_DIR, "DejaVuSans-BoldOblique.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf",
+        os.path.join(MATPLOTLIB_FONTS, "DejaVuSans-BoldOblique.ttf"),
+    )
 
     if reg and bold:
         try:
-            pdfmetrics.registerFont(TTFont("HR",   reg))
-            pdfmetrics.registerFont(TTFont("HR-B", bold))
-            pdfmetrics.registerFont(TTFont("HR-I", ital  or reg))
-            pdfmetrics.registerFont(TTFont("HR-BI",bi    or bold))
-            registerFontFamily("HR", normal="HR", bold="HR-B", italic="HR-I", boldItalic="HR-BI")
-            print(f"[pdf_generator] Font loaded: {reg}")
+            pdfmetrics.registerFont(TTFont("HR",    reg))
+            pdfmetrics.registerFont(TTFont("HR-B",  bold))
+            pdfmetrics.registerFont(TTFont("HR-I",  ital or reg))
+            pdfmetrics.registerFont(TTFont("HR-BI", bi   or bold))
+            registerFontFamily("HR", normal="HR", bold="HR-B",
+                               italic="HR-I", boldItalic="HR-BI")
+            print(f"[pdf_generator] ✅ Font: {reg}")
             return "HR", "HR-B"
         except Exception as e:
-            print(f"[pdf_generator] Font registration failed: {e}")
+            print(f"[pdf_generator] Font error: {e}")
 
-    print(f"[pdf_generator] WARNING: DejaVuSans not found — ₹ symbol may not render. ASSETS_DIR={ASSETS_DIR}")
+    print(f"[pdf_generator] ⚠️  DejaVuSans not found — add TTF files to assets/ folder")
     return "Helvetica", "Helvetica-Bold"
 
 
@@ -176,7 +168,6 @@ LM = 2.0*cm; RM = 2.0*cm; TM = 1.2*cm; BM = 2.0*cm
 CW = PAGE_W - LM - RM
 
 
-# ── Border canvas ─────────────────────────────────────────────
 class BC(canvas.Canvas):
     def showPage(self):
         self.saveState()
@@ -197,16 +188,15 @@ class BDT(SimpleDocTemplate):
         super().build(flowables, **kw)
 
 
-# ── Styles ────────────────────────────────────────────────────
 def S():
     s = getSampleStyleSheet()
     def add(n, **kw):
         if n not in s:
             s.add(ParagraphStyle(name=n, **kw))
-    add("B",   fontName=FR, fontSize=10.5, leading=16, textColor=BLACK, alignment=TA_JUSTIFY, spaceAfter=8)
-    add("SH",  fontName=FB, fontSize=11,   leading=16, textColor=BLACK, spaceBefore=8, spaceAfter=4)
-    add("TIT", fontName=FB, fontSize=14,   leading=18, textColor=BLACK, alignment=TA_CENTER, spaceAfter=10)
-    add("SUB", fontName=FB, fontSize=12,   leading=16, textColor=BLACK, alignment=TA_CENTER, spaceAfter=8)
+    add("B",   fontName=FR, fontSize=10.5, leading=16, textColor=BLACK, alignment=TA_JUSTIFY, spaceAfter=6)
+    add("SH",  fontName=FB, fontSize=11,   leading=16, textColor=BLACK, spaceBefore=6, spaceAfter=3)
+    add("TIT", fontName=FB, fontSize=14,   leading=18, textColor=BLACK, alignment=TA_CENTER, spaceAfter=8)
+    add("SUB", fontName=FB, fontSize=12,   leading=16, textColor=BLACK, alignment=TA_CENTER, spaceAfter=6)
     add("BUL", fontName=FR, fontSize=10.5, leading=15, textColor=BLACK, leftIndent=14, spaceAfter=3)
     add("SUL", fontName=FR, fontSize=10.5, leading=15, textColor=BLACK, leftIndent=28, spaceAfter=2)
     add("SGN", fontName=FB, fontSize=10.5, leading=14, textColor=BLACK, spaceAfter=2)
@@ -251,7 +241,7 @@ def _hdr(title):
     items.append(Spacer(1, 2*mm))
     items.append(Paragraph(title, s["TIT"]))
     items.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
-    items.append(Spacer(1, 3*mm))
+    items.append(Spacer(1, 2*mm))
     return items
 
 
@@ -297,7 +287,9 @@ def _doc(pdf_path, compact=False):
 
 
 # ─────────────────────────────────────────────────────────────
-# PRE-OFFER LETTER
+# PRE-OFFER LETTER — 2 pages
+# Page 1: Intro + Compensation During Probation + Confirmation
+# Page 2: Points to Be Noted (1-5) + Notice Period + Signature
 # ─────────────────────────────────────────────────────────────
 def _pre_offer_pdf(ctx, pdf_path):
     s   = S()
@@ -305,14 +297,14 @@ def _pre_offer_pdf(ctx, pdf_path):
     nm  = ctx.get("candidate_name", "")
     rol = ctx.get("role", "")
     doj = ctx.get("joining_date", "")
-    stipend   = ctx.get("stipend", "\u20b910,000")
+    stipend   = ctx.get("stipend",   "\u20b910,000")
     incentive = ctx.get("incentive", "\u20b915,000")
     p   = _pronoun(sal)
 
     doc = _doc(pdf_path)
     st  = []
 
-    # PAGE 1
+    # ── PAGE 1 ───────────────────────────────────────────────
     st += _hdr("Pre-Offer Letter")
     st.append(Paragraph(
         f'This is to formally acknowledge that <b>{sal} {nm}</b> has been engaged with '
@@ -320,7 +312,7 @@ def _pre_offer_pdf(ctx, pdf_path):
     st.append(Paragraph(
         f'The actual engagement shall commence with a <b>probationary period ranging from '
         f'two to four months</b>, <b>effective from {doj}, the date of joining.</b>', s["B"]))
-    st.append(Spacer(1, 3*mm))
+
     st.append(Paragraph("<b>Compensation During Probation</b>", s["SH"]))
     st.append(Paragraph(
         "During the probation period, the candidate will be entitled to the "
@@ -333,7 +325,7 @@ def _pre_offer_pdf(ctx, pdf_path):
     st.append(_bul(
         "The performance incentive is variable in nature and will be evaluated based on "
         "internal performance review mechanisms.", s))
-    st.append(Spacer(1, 3*mm))
+
     st.append(Paragraph("<b>Confirmation, Promotion &amp; Post-Confirmation Compensation</b>", s["SH"]))
     st.append(Paragraph(
         f'Upon <b>successful completion of the probation period</b> and meeting the prescribed '
@@ -346,16 +338,18 @@ def _pre_offer_pdf(ctx, pdf_path):
         "Applicable Statutory Benefits, including gratuity, as per prevailing laws "
         "and company policy", s))
 
-    # PAGE 2
+    # ── PAGE 2 ───────────────────────────────────────────────
     st.append(PageBreak())
     st += _hdr("Points to Be Noted")
+
     st.append(Paragraph(
         "<b>1. Promotion &amp; Salary Revision:</b> Employees who meet performance "
         "expectations and achieve assigned targets in business development and technical "
         "proof-of-concepts (POCs) will be eligible for promotion and a suitable salary hike, "
         "as per management discretion. The official salary revision happens during "
-        "September–October and April–May. Upon successful completion of the Data Analytics "
-        "Trainee role the employee will be promoted to the role of <b>Business Analyst.</b>", s["B"]))
+        "September\u2013October and April\u2013May. Upon successful completion of the Data "
+        "Analytics Trainee role the employee will be promoted to the role of "
+        "<b>Business Analyst.</b>", s["B"]))
     st.append(Paragraph(
         "<b>2. Training-Cum-Service Bond:</b> As per the terms of employment, the employee "
         "is required to execute a Training-cum-Service Bond committing to serve the company "
@@ -376,25 +370,22 @@ def _pre_offer_pdf(ctx, pdf_path):
     st.append(Paragraph(
         "<b>5. Working Hours &amp; Shifts:</b> The employee should be willing to work in any "
         "shifts and on weekends, if required, based on business needs.", s["B"]))
-
-    # PAGE 3
-    st.append(PageBreak())
-    st += _hdr("Points to Be Noted")
     st.append(Paragraph(
         "<b>Notice Period:</b> The company's official notice period is 90 days. Failure to "
         "serve the full notice period may result in the employee being marked as terminated "
         "in company.", s["B"]))
-    st.append(Spacer(1, 10*mm))
-    st += _sig_block(s, "Analytics Avenue")
+
     st.append(Spacer(1, 6*mm))
+    st += _sig_block(s, "Analytics Avenue")
+    st.append(Spacer(1, 5*mm))
     st.append(Paragraph("<b>Acceptance of Offer:</b>", s["SGN"]))
     st.append(Paragraph(
         f"I, _____________________ accept the position of <b>{rol}</b> at Analytics Avenue "
         "under the terms and conditions outlined in this offer letter and the document attached.",
         s["B"]))
-    st.append(Spacer(1, 6*mm))
+    st.append(Spacer(1, 5*mm))
     st.append(Paragraph("<b>Signature:</b>", s["SGN"]))
-    st.append(Spacer(1, 6*mm))
+    st.append(Spacer(1, 5*mm))
     st.append(Paragraph("<b>Date:</b>", s["SGN"]))
 
     doc.build(st)
@@ -417,12 +408,10 @@ def _internship_pdf(ctx, pdf_path):
     resp = ctx.get("responsibilities", [])
     p    = _pronoun(sal)
 
-    # ── Dynamic role-based text ───────────────────────────────
     rc       = _get_role_context(rol)
-    activity = rc["activity"]   # e.g. "Data Analytics and business intelligence activities"
-    exposure = rc["exposure"]   # e.g. "data analytics processes, dashboard development..."
+    activity = rc["activity"]
+    exposure = rc["exposure"]
 
-    # ── College / dept line ───────────────────────────────────
     if col and dept:
         dept_display = dept if dept.lower().startswith("department") else f"Department of {dept}"
         college_line = f"{col}, {dept_display}"
@@ -433,11 +422,12 @@ def _internship_pdf(ctx, pdf_path):
     else:
         college_line = ""
 
-    # Paragraph styles for internship
     from reportlab.lib.styles import ParagraphStyle as PS
     from reportlab.lib.enums import TA_JUSTIFY as TAJ, TA_CENTER as TAC
-    BC_style   = PS(name="BC2",   fontName=FR, fontSize=10.5, leading=16, textColor=BLACK, alignment=TAJ, spaceAfter=10)
-    BSUB_style = PS(name="BSUB2", fontName=FB, fontSize=12,   leading=18, textColor=BLACK, alignment=TAC, spaceAfter=10)
+    BC_style   = PS(name="BC2",   fontName=FR, fontSize=10.5, leading=16,
+                    textColor=BLACK, alignment=TAJ, spaceAfter=10)
+    BSUB_style = PS(name="BSUB2", fontName=FB, fontSize=12,   leading=18,
+                    textColor=BLACK, alignment=TAC, spaceAfter=10)
 
     doc = _doc(pdf_path)
     st  = []
@@ -455,8 +445,8 @@ def _internship_pdf(ctx, pdf_path):
     st.append(Paragraph(
         f"{p['cap']} internship was carried out for a period of <b>{dur}</b>, from "
         f"<b>{std}</b> to <b>{end}</b>, during which {p['sub']} was actively "
-        f"involved in <b>{activity}</b> under the "
-        f"guidance and supervision of the internal team.", BC_style))
+        f"involved in <b>{activity}</b> under the guidance and supervision of the "
+        f"internal team.", BC_style))
 
     if resp:
         bold_resp = ", ".join(f"<b>{r}</b>" for r in resp)
@@ -468,8 +458,7 @@ def _internship_pdf(ctx, pdf_path):
 
     st.append(Paragraph(
         f"This internship provided {p['obj']} with practical exposure to "
-        f"<b>{exposure}</b> "
-        f"in a professional work environment.", BC_style))
+        f"<b>{exposure}</b> in a professional work environment.", BC_style))
 
     st.append(Paragraph(
         f"We appreciate {p['pos']} contribution during the internship period and wish "
@@ -501,7 +490,6 @@ def _offer_letter_pdf(ctx, pdf_path):
     doc = _doc(pdf_path)
     st  = []
 
-    # PAGE 1
     st += _hdr("Offer Letter")
     st.append(Paragraph(f"Date: <b>{ld}</b>", s["B"]))
     st.append(Spacer(1, 2*mm))
@@ -555,7 +543,6 @@ def _offer_letter_pdf(ctx, pdf_path):
     st.append(_bul(f"<b>Training Bond:</b> 12 months. Early exit attracts recovery of up to <b>\u20b91,00,000</b>.", s))
     st.append(_bul("<b>Background Verification:</b> Offer subject to successful background verification.", s))
 
-    # PAGE 2
     st.append(PageBreak())
     st += _hdr("Offer Letter")
     st.append(Paragraph("<b>Roles &amp; Responsibilities</b>", s["SH"]))
