@@ -238,18 +238,14 @@ def _validate_computed_salary(r: dict) -> dict:
             special_annual = 0
 
     special_m = int(special_annual / 12)
-    # Fix rounding so gross×12 + variable = CTC exactly
-    rounding_diff = ctc - (basic_m + hra_m + pf_m + special_m) * 12 - variable_a
-    special_m += int(rounding_diff / 12)
-    special_annual = special_m * 12
-
-    # Ensure exact annual reconcile: absorb rounding remainder into special
-    actual_total = (basic_m + hra_m + pf_m + special_m) * 12 + variable_a
-    if actual_total != ctc:
-        diff = ctc - actual_total
-        special_m += diff // 12
-        # Any sub-monthly remainder: accept ≤11 rs discrepancy in special
-        special_annual = special_m * 12
+    # Cap tiny special amounts (< ₹100) — rounding artifacts, absorb into basic
+    if 0 < special_m < 100:
+        basic_m += special_m
+        special_m = 0
+        special_annual = 0
+    elif special_m < 0:
+        special_m = 0
+        special_annual = 0
     gross_m = basic_m + hra_m + pf_m + special_m
 
     return {
