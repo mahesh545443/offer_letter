@@ -280,6 +280,8 @@ def _fallback_salary_parse(prompt_text: str) -> dict:
     """Rule-based fallback when Groq unavailable. Handles any format."""
     p = prompt_text.lower().strip()
     p = re.sub(r'[,;/]+', ' ', p)
+    # Normalize "percent" / "per cent" / "%" → "%" symbol
+    p = re.sub(r'\bper\s*cent\b|\bpercent\b|\bpercnt\b|\bperrcent\b', '%', p)
     p = re.sub(r'\s+', ' ', p).strip()
 
     # ── CTC ──────────────────────────────────────────────────
