@@ -19,7 +19,8 @@ def build_context(candidate_name: str, salutation: str, role: str,
                    hra_percent: float = 20, pf_percent: float = 5.0,
                    pf_opted: bool = None,
                    variable_percent: float = 10,
-                   letter_date: str = None) -> dict:
+                   letter_date: str = None,
+                   salary_data: dict = None) -> dict:
     """
     Build context for offer letter template.
 
@@ -43,13 +44,17 @@ def build_context(candidate_name: str, salutation: str, role: str,
     if not letter_date:
         letter_date = datetime.now().strftime("%d-%m-%Y")
 
-    salary = calculate_salary_breakup(
-        ctc_annual=ctc_annual,
-        base_percent=base_percent,
-        hra_percent=hra_percent,
-        pf_percent=pf_percent,
-        variable_percent=variable_percent,
-    )
+    # Use pre-computed salary from Groq if available, else calculate
+    if salary_data:
+        salary = salary_data
+    else:
+        salary = calculate_salary_breakup(
+            ctc_annual=ctc_annual,
+            base_percent=base_percent,
+            hra_percent=hra_percent,
+            pf_percent=pf_percent,
+            variable_percent=variable_percent,
+        )
 
     context = {
         "salutation": salutation,
@@ -70,7 +75,8 @@ def generate_offer_letter(candidate_name: str, salutation: str, role: str,
                            pf_opted: bool = None,
                            variable_percent: float = 10,
                            letter_date: str = None,
-                           custom_rr: list = None) -> dict:
+                           custom_rr: list = None,
+                           salary_data: dict = None) -> dict:
     """
     Generate Offer Letter with salary breakup.
 
@@ -80,7 +86,8 @@ def generate_offer_letter(candidate_name: str, salutation: str, role: str,
     context = build_context(
         candidate_name, salutation, role, department, joining_date,
         ctc_annual, base_percent, hra_percent, pf_percent,
-        pf_opted, variable_percent, letter_date
+        pf_opted, variable_percent, letter_date,
+        salary_data=salary_data
     )
     if custom_rr:
         context["custom_rr"] = custom_rr
