@@ -528,6 +528,7 @@ with tab2:
                         variable_percent=p.get("variable_percent", 10),
                         letter_date=letter_date_offer.strftime("%d-%m-%Y"),
                         custom_rr=rr_lines if rr_lines else None,
+                        salary_data=st.session_state.salary_result,  # pass Groq computed values
                     )
                 if result["success"]:
                     if offer_name_typed.strip() not in get_candidate_names():
