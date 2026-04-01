@@ -304,22 +304,28 @@ def _fallback_salary_parse(prompt_text: str) -> dict:
     # ── BASIC ─────────────────────────────────────────────────
     basic_a = ctc * 0.40  # default 40%
 
-    # "3.8 as a base" / "3.8 as base" / "3.8 as the base"
+    # Priority order for basic extraction:
+    # 1. "3.8 as a base" / "3.8 as base"
     m = re.search(r'(\d+\.?\d*)\s+as\s+(?:a\s+|an\s+|the\s+)?base(?:\s+pay)?', p)
     if m:
         basic_a = float(m.group(1)) * 100000
     else:
-        # "basic 3.8 lpa" / "base 3.8 lpa"
+        # 2. "basic 3.8 lpa" / "base 4 lpa" (keyword THEN amount — higher priority)
         m = re.search(r'bas(?:e|ic)(?:\s+pay)?\s+(\d+\.?\d*)\s*lpa?', p)
         if m:
             basic_a = float(m.group(1)) * 100000
         else:
-            # "40% basic" / "basic 40%" / "40 percent base"
-            m = re.search(r'(\d+\.?\d*)\s*%\s*bas(?:e|ic)', p)
-            if not m:
-                m = re.search(r'bas(?:e|ic)(?:\s+pay)?\s*[^\d]*(\d+\.?\d*)\s*%', p)
-            if m:
-                basic_a = ctc * float(m.group(1)) / 100
+            # 3. "4lpa base" (amount lpa THEN keyword — only if != CTC)
+            m = re.search(r'(\d+\.?\d*)\s*lpa?\s*(?:as\s+(?:a\s+)?)?bas(?:e|ic)', p)
+            if m and abs(float(m.group(1)) * 100000 - ctc) > 1000:
+                basic_a = float(m.group(1)) * 100000
+            else:
+                # 4. "40% basic" / "basic 40%"
+                m = re.search(r'(\d+\.?\d*)\s*%\s*bas(?:e|ic)', p)
+                if not m:
+                    m = re.search(r'bas(?:e|ic)(?:\s+pay)?\s*[^\d]*(\d+\.?\d*)\s*%', p)
+                if m:
+                    basic_a = ctc * float(m.group(1)) / 100
 
     # ── HRA ───────────────────────────────────────────────────
     hra_a = basic_a * 0.20  # default 20% of basic
