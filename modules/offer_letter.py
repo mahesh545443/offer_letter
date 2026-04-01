@@ -69,7 +69,8 @@ def generate_offer_letter(candidate_name: str, salutation: str, role: str,
                            hra_percent: float = 20, pf_percent: float = 5.0,
                            pf_opted: bool = None,
                            variable_percent: float = 10,
-                           letter_date: str = None) -> dict:
+                           letter_date: str = None,
+                           custom_rr: list = None) -> dict:
     """
     Generate Offer Letter with salary breakup.
 
@@ -81,6 +82,8 @@ def generate_offer_letter(candidate_name: str, salutation: str, role: str,
         ctc_annual, base_percent, hra_percent, pf_percent,
         pf_opted, variable_percent, letter_date
     )
+    if custom_rr:
+        context["custom_rr"] = custom_rr
 
     result = generate_document(
         template_name=TEMPLATE_NAME,
