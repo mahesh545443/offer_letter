@@ -28,7 +28,7 @@ from modules.pre_offer import generate_pre_offer
 from modules.internship import generate_internship
 from modules.offer_letter import generate_offer_letter
 from modules.pdf_generator import read_file_bytes
-from modules.ai_service_rr import (
+from modules.ai_service import (
     fix_role_name, fix_responsibility_line,
     complete_responsibilities, ROLE_DEFAULTS
 )
