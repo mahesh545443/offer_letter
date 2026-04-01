@@ -529,6 +529,7 @@ def _offer_letter_pdf(ctx, pdf_path):
         ],
     }
     # Use custom R&R if provided (Other role), else use preset
+    custom_rr = ctx.get("custom_rr", None)
     if custom_rr:
         rr_items = custom_rr
     else:
