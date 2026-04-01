@@ -327,22 +327,28 @@ def _pre_offer_pdf(ctx, pdf_path):
     st.append(Paragraph(
         f'This is to formally acknowledge that <b>{sal} {nm}</b> has been engaged with '
         f'<b>Analytics Avenue LLP</b> in the role of <b>{rol}</b>', s["B"]))
-    st.append(Paragraph(
-        f'The actual engagement shall commence with a <b>probationary period ranging from '
-        f'two to four months</b>, <b>effective from {doj}, the date of joining.</b>', s["B"]))
+    if training_dur and prob_start:
+        st.append(Paragraph(
+            f'The candidate will undergo a <b>Training Period of {training_dur}</b> commencing from <b>{doj}</b>, '
+            f'followed by a <b>Probationary Period of two to four months</b> starting from <b>{prob_start}</b>.', s["B"]))
+    else:
+        st.append(Paragraph(
+            f'The actual engagement shall commence with a <b>probationary period ranging from '
+            f'two to four months</b>, <b>effective from {doj}, the date of joining.</b>', s["B"]))
 
     st.append(Paragraph("<b>Compensation During Probation</b>", s["SH"]))
     st.append(Paragraph(
         "During the probation period, the candidate will be entitled to the "
         "following compensation:", s["B"]))
     st.append(_bul(f"<b>Fixed Stipend / Base Pay: {stipend} per month</b>", s))
-    st.append(_bul(
-        f"<b>Performance-Based Incentive:</b> Up to <b>{incentive} per month</b>, subject "
-        "to the successful <b>achievement of assigned targets</b> and <b>performance "
-        "benchmarks</b> as defined by the organization.", s))
-    st.append(_bul(
-        "The performance incentive is variable in nature and will be evaluated based on "
-        "internal performance review mechanisms.", s))
+    if incentive:
+        st.append(_bul(
+            f"<b>Performance-Based Incentive:</b> Up to <b>{incentive} per month</b>, subject "
+            "to the successful <b>achievement of assigned targets</b> and <b>performance "
+            "benchmarks</b> as defined by the organization.", s))
+        st.append(_bul(
+            "The performance incentive is variable in nature and will be evaluated based on "
+            "internal performance review mechanisms.", s))
 
     st.append(Paragraph("<b>Confirmation, Promotion &amp; Post-Confirmation Compensation</b>", s["SH"]))
     st.append(Paragraph(
