@@ -528,13 +528,17 @@ def _offer_letter_pdf(ctx, pdf_path):
             "Handling employee queries and HR operations",
         ],
     }
-    rr_items = role_rr.get(rol, [
-        "End-to-end business development activities",
-        "Client engagement and lead generation",
-        "Follow-ups and achievement of assigned targets",
-        "Preparation of reports and dashboards",
-        "Completion of mandatory technical and professional training programs",
-    ])
+    # Use custom R&R if provided (Other role), else use preset
+    if custom_rr:
+        rr_items = custom_rr
+    else:
+        rr_items = role_rr.get(rol, [
+            "End-to-end business development activities",
+            "Client engagement and lead generation",
+            "Follow-ups and achievement of assigned targets",
+            "Preparation of reports and dashboards",
+            "Completion of mandatory technical and professional training programs",
+        ])
 
     doc = _doc(pdf_path)
     st  = []
