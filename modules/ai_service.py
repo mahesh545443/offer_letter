@@ -87,9 +87,20 @@ HR will describe a salary in ANY format. You MUST calculate and return exact rup
 === STEP 2: CALCULATE EACH COMPONENT ===
 HR may give amounts OR percentages — handle BOTH:
 
+CRITICAL RULE FOR BASIC:
+- If a number < 20 appears near "base/basic" WITHOUT "%" or "lpa" → it means LPA amount
+  Example: "5lpa 4 base" → CTC=500000, basic=4 LPA=400000
+  Example: "6lpa 3.5 base" → CTC=600000, basic=3.5 LPA=350000
+  Example: "8lpa basic 4.5" → CTC=800000, basic=4.5 LPA=450000
+- If a number has "%" after it → it means percentage of CTC
+  Example: "40% basic" → basic = CTC × 0.40
+- If a number has "lpa" → it means rupee amount
+  Example: "basic 3.8 lpa" → basic = 380000
+
 BASIC:
 - "basic 40%" or "40% base" → basic_annual = CTC × 0.40
 - "basic 3.8 LPA" or "3.8 as base" or "base is 3.8" → basic_annual = 380000
+- "4 base" or "base 4" or "4 basic" (no % sign) → basic_annual = 4 LPA = 400000
 - "basic 30000/month" → basic_annual = 360000
 - "basic 50% of CTC" → basic_annual = CTC × 0.50
 
@@ -320,12 +331,23 @@ def _fallback_salary_parse(prompt_text: str) -> dict:
             if m and abs(float(m.group(1)) * 100000 - ctc) > 1000:
                 basic_a = float(m.group(1)) * 100000
             else:
-                # 4. "40% basic" / "basic 40%"
-                m = re.search(r'(\d+\.?\d*)\s*%\s*bas(?:e|ic)', p)
+                # 4. Bare number near base: "4 base" / "base 4" (no % or lpa) → LPA amount
+                # Use word boundary to avoid matching partial numbers
+                m = re.search(r'(\d+\.?\d*)\b\s+bas(?:e|ic)\b(?!\s*%|lpa)', p)
                 if not m:
-                    m = re.search(r'bas(?:e|ic)(?:\s+pay)?\s*[^\d]*(\d+\.?\d*)\s*%', p)
+                    m = re.search(r'bas(?:e|ic)(?:\s+pay)?\s+(\d+\.?\d*)\b(?!\s*%|\s*lpa)', p)
                 if m:
-                    basic_a = ctc * float(m.group(1)) / 100
+                    val = float(m.group(1))
+                    if 0.5 < val < 30:  # bare number 0.5-30 = LPA amount
+                        basic_a = val * 100000
+                else:
+                    # 5. "40% basic" / "basic 40%" — stop before pf/variable keywords
+                    m = re.search(r'(\d+\.?\d*)\s*%\s*bas(?:e|ic)', p)
+                    if not m:
+                        # Look for % immediately after base keyword (within 5 chars)
+                        m = re.search(r'bas(?:e|ic)(?:\s+pay)?\s{0,5}(\d+\.?\d*)\s*%', p)
+                    if m:
+                        basic_a = ctc * float(m.group(1)) / 100
 
     # ── HRA ───────────────────────────────────────────────────
     hra_a = basic_a * 0.20  # default 20% of basic
