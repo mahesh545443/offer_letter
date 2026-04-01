@@ -6,6 +6,7 @@ Streamlit UI — Professional Theme
 
 import os
 import sys
+import re
 import streamlit as st
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
@@ -34,8 +35,138 @@ st.set_page_config(
     page_title="HR Letter Generator — Analytics Avenue",
     page_icon="assets/letterhead_final.png",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
+
+# ─── Helper functions ─────────────────────────────────────────
+
+def format_amount(raw: str) -> str:
+    """Convert '15000' or '15,000' → '₹15,000'"""
+    raw = raw.strip().replace("₹", "").replace(",", "").replace(" ", "")
+    try:
+        amount = int(float(raw))
+        # Format with Indian comma style
+        s = str(amount)
+        if len(s) <= 3:
+            return f"₹{s}"
+        last3 = s[-3:]
+        rest = s[:-3]
+        parts = []
+        while len(rest) > 2:
+            parts.append(rest[-2:])
+            rest = rest[:-2]
+        if rest:
+            parts.append(rest)
+        parts.reverse()
+        return f"₹{','.join(parts)},{last3}"
+    except Exception:
+        return f"₹{raw}"
+
+
+def fix_text(text: str) -> str:
+    """
+    Auto-fix spelling, grammar, capitalization for role names and responsibility points.
+    Uses simple rules + title case for role names.
+    """
+    if not text or not text.strip():
+        return text
+
+    # Common spelling corrections
+    corrections = {
+        r'\bsciene\b': 'Science', r'\bscienece\b': 'Science',
+        r'\banalyist\b': 'Analyst', r'\banalyst\b': 'Analyst',
+        r'\bdevelpoer\b': 'Developer', r'\bdeveloer\b': 'Developer',
+        r'\bmanageer\b': 'Manager', r'\bmanaer\b': 'Manager',
+        r'\benginer\b': 'Engineer', r'\bengineer\b': 'Engineer',
+        r'\bmarkting\b': 'Marketing', r'\bmarkteing\b': 'Marketing',
+        r'\brecuiter\b': 'Recruiter', r'\brecrutier\b': 'Recruiter',
+        r'\bdesiner\b': 'Designer', r'\bdesigener\b': 'Designer',
+        r'\bsoftwar\b': 'Software', r'\bsofware\b': 'Software',
+        r'\bbuisness\b': 'Business', r'\bbussiness\b': 'Business',
+        r'\boperaion\b': 'Operation', r'\bopertion\b': 'Operation',
+        r'\bfinace\b': 'Finance', r'\bfinancee\b': 'Finance',
+        r'\baccountig\b': 'Accounting', r'\baccounting\b': 'Accounting',
+        r'\bpython\b': 'Python', r'\bsql\b': 'SQL',
+        r'\bai\b': 'AI', r'\bml\b': 'ML', r'\bhr\b': 'HR',
+        r'\bui\b': 'UI', r'\bux\b': 'UX', r'\bit\b': 'IT',
+    }
+    result = text
+    for pattern, replacement in corrections.items():
+        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+
+    # Title case for role names (each word capitalized)
+    words = result.strip().split()
+    titled = []
+    for w in words:
+        # Keep acronyms uppercase
+        if w.upper() in ['HR', 'AI', 'ML', 'IT', 'UI', 'UX', 'SQL', 'API', 'CRM', 'ERP']:
+            titled.append(w.upper())
+        else:
+            titled.append(w.capitalize())
+    return ' '.join(titled)
+
+
+def fix_responsibility(line: str) -> str:
+    """Fix a single responsibility line — sentence case, punctuation."""
+    line = line.strip()
+    if not line:
+        return line
+    # Common corrections
+    corrections = {
+        r'\bpython\b': 'Python', r'\bsql\b': 'SQL', r'\bexcel\b': 'Excel',
+        r'\bpower\s*bi\b': 'Power BI', r'\bpowerbi\b': 'Power BI',
+        r'\bmicrosoft\b': 'Microsoft', r'\blinkedin\b': 'LinkedIn',
+        r'\bgoogle\b': 'Google', r'\bai\b': 'AI', r'\bml\b': 'ML',
+        r'\bhr\b': 'HR', r'\bcrm\b': 'CRM', r'\berp\b': 'ERP',
+    }
+    for pattern, replacement in corrections.items():
+        line = re.sub(pattern, replacement, line, flags=re.IGNORECASE)
+    # Sentence case — capitalize first letter
+    if line:
+        line = line[0].upper() + line[1:]
+    # Add period at end if missing
+    if line and line[-1] not in '.!?,;':
+        line += '.'
+    return line
+
+
+# ─── College Departments ──────────────────────────────────────
+COLLEGE_DEPARTMENTS = [
+    "Computer Science and Engineering",
+    "Data Science",
+    "Artificial Intelligence",
+    "Artificial Intelligence and Machine Learning",
+    "Information Technology",
+    "Electronics and Communication Engineering",
+    "Electrical Engineering",
+    "Mechanical Engineering",
+    "Civil Engineering",
+    "Chemical Engineering",
+    "Biotechnology",
+    "Business Administration (BBA)",
+    "Commerce (B.Com)",
+    "MBA",
+    "Mathematics",
+    "Physics",
+    "Psychology",
+    "English Literature",
+    "Economics",
+    "Other",
+]
+
+# ─── Preset Roles ─────────────────────────────────────────────
+PRESET_ROLES = [
+    "Data Analytics Trainee",
+    "Data Analyst",
+    "Business Analyst",
+    "Software Developer",
+    "HR Executive",
+    "Talent Acquisition Intern",
+    "Data Analytics Intern",
+    "Marketing Intern",
+    "Business Development Intern",
+    "Other",
+]
 
 # ─── Professional CSS ─────────────────────────────────────────
 st.markdown("""
@@ -47,14 +178,9 @@ html, body, [class*="css"] {
     background-color: #f0f4f8;
 }
 
-/* ── Sidebar ── */
-section[data-testid="stSidebar"] {
-    background: #ffffff;
-    border-right: 1px solid #dbe3ed;
-}
-section[data-testid="stSidebar"] * {
-    color: #1a2942 !important;
-}
+/* Hide sidebar toggle */
+[data-testid="collapsedControl"] { display: none; }
+section[data-testid="stSidebar"] { display: none; }
 
 /* ── Top bar ── */
 .aa-topbar {
@@ -68,52 +194,18 @@ section[data-testid="stSidebar"] * {
     border-radius: 0 0 8px 8px;
     box-shadow: 0 2px 8px rgba(26,86,176,0.08);
 }
-.aa-topbar-name {
-    font-size: 20px;
-    font-weight: 700;
-    color: #064b86;
-    letter-spacing: -0.3px;
-}
-.aa-topbar-sub {
-    font-size: 12px;
-    color: #7a8fa6;
-    margin-top: 1px;
-}
+.aa-topbar-name { font-size: 20px; font-weight: 700; color: #064b86; }
+.aa-topbar-sub  { font-size: 12px; color: #7a8fa6; margin-top: 1px; }
 
-/* ── Page title ── */
-.aa-page-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: #0d2b5e;
-    margin-bottom: 2px;
-}
-.aa-page-sub {
-    font-size: 13px;
-    color: #6b7c93;
-    margin-bottom: 20px;
-}
+.aa-page-title { font-size: 22px; font-weight: 700; color: #0d2b5e; margin-bottom: 2px; }
+.aa-page-sub   { font-size: 13px; color: #6b7c93; margin-bottom: 20px; }
 
-/* ── Cards ── */
 .aa-card {
-    background: #ffffff;
-    border: 1px solid #dbe3ed;
-    border-radius: 10px;
-    padding: 22px 24px;
-    margin-bottom: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-}
-.aa-card-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: #1a56b0;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    margin-bottom: 14px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #e8eef6;
+    background: #ffffff; border: 1px solid #dbe3ed;
+    border-radius: 10px; padding: 22px 24px;
+    margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 
-/* ── Salary preview table ── */
 .sal-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .sal-table tr { border-bottom: 1px solid #e8eef6; }
 .sal-table tr:last-child { border-bottom: none; font-weight: 600; color: #0d2b5e; }
@@ -122,182 +214,60 @@ section[data-testid="stSidebar"] * {
 .sal-table tr.gross td { background: #f0f5ff; font-weight: 600; }
 .sal-table tr.ctc td { background: #e8f0fe; font-weight: 700; color: #0d2b5e; }
 
-/* ── Tabs ── */
 div[data-testid="stTabs"] {
-    background: #ffffff;
-    border-radius: 10px;
-    border: 1px solid #dbe3ed;
-    padding: 0;
+    background: #ffffff; border-radius: 10px;
+    border: 1px solid #dbe3ed; padding: 0;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 div[data-testid="stTabs"] > div:first-child {
-    background: #f5f8ff;
-    border-bottom: 2px solid #dbe3ed;
-    border-radius: 10px 10px 0 0;
-    padding: 0 16px;
+    background: #f5f8ff; border-bottom: 2px solid #dbe3ed;
+    border-radius: 10px 10px 0 0; padding: 0 16px;
 }
 div[data-testid="stTabs"] button {
-    font-size: 13px;
-    font-weight: 500;
-    color: #6b7c93;
-    padding: 12px 20px;
-    border: none;
-    background: transparent;
+    font-size: 13px; font-weight: 500; color: #6b7c93;
+    padding: 12px 20px; border: none; background: transparent;
 }
 div[data-testid="stTabs"] button[aria-selected="true"] {
-    color: #1a56b0;
-    border-bottom: 2px solid #1a56b0;
-    font-weight: 600;
+    color: #1a56b0; border-bottom: 2px solid #1a56b0; font-weight: 600;
 }
-div[data-testid="stTabs"] > div:last-child {
-    padding: 24px;
-}
+div[data-testid="stTabs"] > div:last-child { padding: 24px; }
 
-/* ── Generate buttons — always white text on blue ── */
+/* ── Generate buttons ── */
 .stButton > button {
-    background: #1a56b0 !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 7px !important;
-    font-weight: 600 !important;
-    font-size: 13px !important;
-    padding: 10px 20px !important;
-    width: 100% !important;
-    letter-spacing: 0.2px !important;
+    background: #1a56b0 !important; color: white !important;
+    border: none !important; border-radius: 7px !important;
+    font-weight: 600 !important; font-size: 13px !important;
+    padding: 10px 20px !important; width: 100% !important;
     transition: background 0.2s !important;
 }
-.stButton > button:hover {
-    background: #1344a0 !important;
-    color: white !important;
-}
-.stButton > button:focus {
-    background: #1a56b0 !important;
-    color: white !important;
-}
-.stButton > button p,
-.stButton > button span,
-.stButton > button div {
-    color: white !important;
-}
+.stButton > button:hover { background: #1344a0 !important; color: white !important; }
+.stButton > button p, .stButton > button span, .stButton > button div { color: white !important; }
 
-/* ── Download buttons — ALWAYS show blue text ── */
+/* ── Download buttons ── */
 .stDownloadButton > button {
-    background: #f0f5ff !important;
-    color: #1a56b0 !important;
-    border: 1.5px solid #1a56b0 !important;
-    border-radius: 7px !important;
-    font-weight: 600 !important;
-    font-size: 13px !important;
-    width: 100% !important;
-    transition: background 0.2s !important;
+    background: #f0f5ff !important; color: #1a56b0 !important;
+    border: 1.5px solid #1a56b0 !important; border-radius: 7px !important;
+    font-weight: 600 !important; font-size: 13px !important; width: 100% !important;
 }
-.stDownloadButton > button:hover {
-    background: #dbeafe !important;
-    color: #1344a0 !important;
-    border-color: #1344a0 !important;
-}
-.stDownloadButton > button:focus {
-    background: #f0f5ff !important;
-    color: #1a56b0 !important;
-    border-color: #1a56b0 !important;
-}
-/* Fix for white text bug — override any inherited white color */
-.stDownloadButton > button p,
-.stDownloadButton > button span,
-.stDownloadButton > button div {
-    color: #1a56b0 !important;
-}
+.stDownloadButton > button:hover { background: #dbeafe !important; }
+.stDownloadButton > button p, .stDownloadButton > button span { color: #1a56b0 !important; }
 
-/* ── Form labels ── */
-.stSelectbox label, .stTextInput label,
-.stDateInput label, .stTextArea label {
-    font-weight: 600;
-    font-size: 12px;
-    color: #4a5568;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
+.stSelectbox label, .stTextInput label, .stDateInput label, .stTextArea label {
+    font-weight: 600; font-size: 12px; color: #4a5568;
+    text-transform: uppercase; letter-spacing: 0.4px;
 }
-
-/* ── Section label ── */
 .field-group-label {
-    font-size: 12px;
-    font-weight: 700;
-    color: #1a56b0;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin: 16px 0 10px;
-    padding-left: 2px;
+    font-size: 12px; font-weight: 700; color: #1a56b0;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin: 16px 0 10px; padding-left: 2px;
 }
-
-/* ── Info / success / error ── */
-.aa-info {
-    background: #f0f5ff;
-    border-left: 3px solid #1a56b0;
-    border-radius: 6px;
-    padding: 10px 14px;
-    font-size: 13px;
-    color: #1a2942;
-    margin: 8px 0;
-}
-.aa-success {
-    background: #f0fdf4;
-    border-left: 3px solid #22c55e;
-    border-radius: 6px;
-    padding: 10px 14px;
-    font-size: 13px;
-    color: #166534;
-    margin: 8px 0;
-}
-.aa-error {
-    background: #fff5f5;
-    border-left: 3px solid #ef4444;
-    border-radius: 6px;
-    padding: 10px 14px;
-    font-size: 13px;
-    color: #991b1b;
-    margin: 8px 0;
-}
-
-/* ── History cards ── */
-.hist-card {
-    background: #f8faff;
-    border: 1px solid #dbe3ed;
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 8px;
-}
-
-/* ── Divider ── */
-.aa-divider {
-    border: none;
-    border-top: 1px solid #e2e8f0;
-    margin: 16px 0;
-}
-
-/* ── Parsed params box ── */
-.parsed-box {
-    background: #f5f8ff;
-    border: 1px solid #c3d4f0;
-    border-radius: 7px;
-    padding: 10px 14px;
-    font-size: 12px;
-    color: #2d3748;
-    margin: 8px 0 12px;
-    line-height: 1.8;
-}
-.parsed-box span { font-weight: 600; color: #1a56b0; }
-
-/* ── Duration badge ── */
-.dur-badge {
-    background: #e8f0fe;
-    color: #1a56b0;
-    border-radius: 20px;
-    padding: 3px 12px;
-    font-size: 12px;
-    font-weight: 600;
-    display: inline-block;
-    margin: 6px 0;
-}
+.aa-info    { background:#f0f5ff; border-left:3px solid #1a56b0; border-radius:6px; padding:10px 14px; font-size:13px; color:#1a2942; margin:8px 0; }
+.aa-success { background:#f0fdf4; border-left:3px solid #22c55e; border-radius:6px; padding:10px 14px; font-size:13px; color:#166534; margin:8px 0; }
+.aa-error   { background:#fff5f5; border-left:3px solid #ef4444; border-radius:6px; padding:10px 14px; font-size:13px; color:#991b1b; margin:8px 0; }
+.parsed-box { background:#f5f8ff; border:1px solid #c3d4f0; border-radius:7px; padding:10px 14px; font-size:12px; color:#2d3748; margin:8px 0 12px; line-height:1.8; }
+.parsed-box span { font-weight:600; color:#1a56b0; }
+.dur-badge { background:#e8f0fe; color:#1a56b0; border-radius:20px; padding:3px 12px; font-size:12px; font-weight:600; display:inline-block; margin:6px 0; }
+.fix-badge { background:#fff7ed; border:1px solid #f97316; color:#c2410c; border-radius:6px; padding:4px 10px; font-size:11px; margin:4px 0; display:inline-block; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -305,82 +275,19 @@ div[data-testid="stTabs"] > div:last-child {
 logo_url = "https://raw.githubusercontent.com/Analytics-Avenue/streamlit-dataapp/main/logo.png"
 st.markdown(f"""
 <div class="aa-topbar">
-    <img src="{logo_url}" width="48" style="border-radius:6px; border:1px solid #dbe3ed;">
+    <img src="{logo_url}" width="48" style="border-radius:6px;border:1px solid #dbe3ed;">
     <div>
         <div class="aa-topbar-name">Analytics Avenue LLP</div>
         <div class="aa-topbar-sub">Empower your business with data-driven insights</div>
     </div>
     <div style="flex:1;"></div>
-    <div style="font-size:12px; color:#7a8fa6;">HR Automation Platform</div>
+    <div style="font-size:12px;color:#7a8fa6;">HR Automation Platform</div>
 </div>
 """, unsafe_allow_html=True)
 
-# ─── Sidebar ──────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown(f"""
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-        <img src="{logo_url}" width="36" style="border-radius:4px;border:1px solid #dbe3ed;">
-        <div>
-            <div style="font-size:13px;font-weight:700;color:#064b86;">Analytics Avenue LLP</div>
-            <div style="font-size:11px;color:#7a8fa6;">HR Automation</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.divider()
-    st.markdown("**Add New Person**")
-    person_type = st.radio("Type", ["Candidate", "Intern"], horizontal=True, label_visibility="collapsed")
-
-    with st.expander("Add to Database", expanded=False):
-        if person_type == "Candidate":
-            new_name  = st.text_input("Full Name *", key="sb_cname")
-            new_sal   = st.selectbox("Salutation *", ["Ms.", "Mr.", "Dr."], key="sb_csal")
-            new_role  = st.selectbox("Role *", get_roles(), key="sb_crole")
-            new_dept  = st.selectbox("Department *", get_departments(), key="sb_cdept")
-            new_join  = st.date_input("Joining Date *", key="sb_cjoin")
-            new_email = st.text_input("Email", key="sb_cemail")
-            if st.button("Add Candidate", key="sb_addcand"):
-                if new_name:
-                    add_candidate({"name": new_name, "salutation": new_sal, "role": new_role,
-                                   "department": new_dept, "joining_date": new_join.strftime("%d-%m-%Y"),
-                                   "email": new_email, "phone": ""})
-                    st.success(f"{new_name} added.")
-                    st.rerun()
-        else:
-            new_name    = st.text_input("Full Name *", key="sb_iname")
-            new_sal     = st.selectbox("Salutation *", ["Ms.", "Mr.", "Dr."], key="sb_isal")
-            new_reg     = st.text_input("Reg. No.", key="sb_ireg")
-            new_college = st.text_input("College / Institution", key="sb_icollege")
-            new_dept    = st.selectbox("Department *", get_departments(), key="sb_idept")
-            new_role    = st.selectbox("Role *", get_roles(), key="sb_irole")
-            new_start   = st.date_input("Start Date *", key="sb_istart")
-            new_end     = st.date_input("End Date *", key="sb_iend")
-            new_email   = st.text_input("Email", key="sb_iemail")
-            if st.button("Add Intern", key="sb_addintern"):
-                if new_name:
-                    add_intern({"name": new_name, "salutation": new_sal, "reg_no": new_reg,
-                                "college": new_college, "department": new_dept, "role": new_role,
-                                "start_date": new_start.strftime("%d-%m-%Y"),
-                                "end_date": new_end.strftime("%d-%m-%Y"),
-                                "duration": "", "responsibilities": [], "email": new_email})
-                    st.success(f"{new_name} added.")
-                    st.rerun()
-
-    st.divider()
-    st.markdown("**Settings**")
-    groq_model = st.selectbox("Groq Model", [
-        "llama3-8b-8192", "llama3-70b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"
-    ], label_visibility="visible", key="groq_model_select")
-    st.divider()
-    st.caption("Analytics Avenue LLP · HR Automation · v2.0")
-
-
 # ─── Tabs ─────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4 = st.tabs([
-    "Pre-Offer Letter",
-    "Offer Letter",
-    "Internship Certificate",
-    "History"
+    "Pre-Offer Letter", "Offer Letter", "Internship Certificate", "History"
 ])
 
 
@@ -396,11 +303,21 @@ with tab1:
     with col1:
         st.markdown('<div class="field-group-label">Candidate Details</div>', unsafe_allow_html=True)
         pre_name_typed = st.text_input("Full Name", placeholder="Enter candidate full name", key="pre_name_manual")
+
         col_a, col_b = st.columns(2)
         with col_a:
-            salutation_pre = st.selectbox("Salutation", ["Ms.", "Mr.", "Dr."], key="pre_sal")
+            salutation_pre = st.selectbox("Salutation", ["Ms.", "Mr."], key="pre_sal")
         with col_b:
-            role_pre = st.selectbox("Role / Designation", get_roles(), key="pre_role")
+            role_pre_sel = st.selectbox("Role / Designation", PRESET_ROLES, key="pre_role_sel")
+
+        # Other role input
+        if role_pre_sel == "Other":
+            role_pre_raw = st.text_input("Type Role Name", placeholder="e.g. Data Science Analyst", key="pre_role_other")
+            role_pre = fix_text(role_pre_raw) if role_pre_raw.strip() else ""
+            if role_pre_raw.strip() and role_pre != role_pre_raw.strip():
+                st.markdown(f'<div class="fix-badge">✏️ Auto-corrected to: <b>{role_pre}</b></div>', unsafe_allow_html=True)
+        else:
+            role_pre = role_pre_sel
 
         joining_date_pre = st.date_input("Joining Date", value=date.today(), key="pre_join")
         letter_date_pre  = st.date_input("Letter Date",  value=date.today(), key="pre_letter_date")
@@ -408,11 +325,26 @@ with tab1:
         st.markdown('<div class="field-group-label">Probation Compensation</div>', unsafe_allow_html=True)
         col_s, col_i = st.columns(2)
         with col_s:
-            stipend_pre = st.selectbox("Fixed Stipend / Base Pay",
-                ["\u20b910,000", "\u20b912,000", "\u20b915,000"], key="pre_stipend")
+            stipend_options = ["\u20b910,000", "\u20b912,000", "\u20b915,000", "Other"]
+            stipend_sel = st.selectbox("Fixed Stipend / Base Pay", stipend_options, key="pre_stipend_sel")
+            if stipend_sel == "Other":
+                stipend_raw = st.text_input("Enter Stipend Amount", placeholder="e.g. 13000", key="pre_stipend_other")
+                stipend_pre = format_amount(stipend_raw) if stipend_raw.strip() else ""
+                if stipend_pre:
+                    st.markdown(f'<div class="fix-badge">Formatted: <b>{stipend_pre}</b></div>', unsafe_allow_html=True)
+            else:
+                stipend_pre = stipend_sel
+
         with col_i:
-            incentive_pre = st.selectbox("Performance Incentive (Up to)",
-                ["\u20b915,000", "\u20b918,000", "\u20b920,000"], key="pre_incentive")
+            incentive_options = ["\u20b915,000", "\u20b918,000", "\u20b920,000", "Other"]
+            incentive_sel = st.selectbox("Performance Incentive (Up to)", incentive_options, key="pre_incentive_sel")
+            if incentive_sel == "Other":
+                incentive_raw = st.text_input("Enter Incentive Amount", placeholder="e.g. 22000", key="pre_incentive_other")
+                incentive_pre = format_amount(incentive_raw) if incentive_raw.strip() else ""
+                if incentive_pre:
+                    st.markdown(f'<div class="fix-badge">Formatted: <b>{incentive_pre}</b></div>', unsafe_allow_html=True)
+            else:
+                incentive_pre = incentive_sel
 
     with col2:
         st.markdown('<div class="field-group-label">Preview &amp; Generate</div>', unsafe_allow_html=True)
@@ -420,10 +352,10 @@ with tab1:
         <div class="aa-card">
             <div style="font-size:13px;color:#4a5568;line-height:2;">
                 <b>Candidate:</b> {pre_name_typed.strip() or "—"}<br>
-                <b>Role:</b> {role_pre}<br>
+                <b>Role:</b> {role_pre or "—"}<br>
                 <b>Joining:</b> {joining_date_pre.strftime("%d %b %Y")}<br>
-                <b>Stipend:</b> {stipend_pre} / month<br>
-                <b>Incentive:</b> Up to {incentive_pre} / month
+                <b>Stipend:</b> {stipend_pre or "—"} / month<br>
+                <b>Incentive:</b> Up to {incentive_pre or "—"} / month
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -434,6 +366,12 @@ with tab1:
             candidate_name = pre_name_typed.strip()
             if not candidate_name:
                 st.error("Please enter a candidate name.")
+            elif not role_pre:
+                st.error("Please enter a role.")
+            elif not stipend_pre:
+                st.error("Please enter stipend amount.")
+            elif not incentive_pre:
+                st.error("Please enter incentive amount.")
             else:
                 with st.spinner("Generating letter..."):
                     result = generate_pre_offer(
@@ -457,16 +395,16 @@ with tab1:
 
         if st.session_state.get("pre_result"):
             r = st.session_state["pre_result"]
-            st.markdown(f'<div class="aa-success">\u2705 Letter ready: {r["filename"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="aa-success">✅ Letter ready: {r["filename"]}</div>', unsafe_allow_html=True)
             col_dl1, col_dl2 = st.columns(2)
             with col_dl1:
-                st.download_button("\u2B07\uFE0F Download DOCX", data=read_file_bytes(r["docx_path"]),
+                st.download_button("⬇️ Download DOCX", data=read_file_bytes(r["docx_path"]),
                     file_name=f"{r['filename']}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     key="persist_pre_docx")
             with col_dl2:
                 if r.get("pdf_path") and os.path.exists(r["pdf_path"]):
-                    st.download_button("\u2B07\uFE0F Download PDF", data=read_file_bytes(r["pdf_path"]),
+                    st.download_button("⬇️ Download PDF", data=read_file_bytes(r["pdf_path"]),
                         file_name=f"{r['filename']}.pdf", mime="application/pdf",
                         key="persist_pre_pdf")
 
@@ -483,13 +421,36 @@ with tab2:
     with col1:
         st.markdown('<div class="field-group-label">Candidate Details</div>', unsafe_allow_html=True)
         offer_name_typed = st.text_input("Full Name", placeholder="Enter candidate full name", key="offer_name_manual")
+
         col_a, col_b = st.columns(2)
         with col_a:
-            salutation_offer = st.selectbox("Salutation", ["Ms.", "Mr.", "Dr."], key="offer_sal")
+            salutation_offer = st.selectbox("Salutation", ["Ms.", "Mr."], key="offer_sal")
         with col_b:
-            role_offer = st.selectbox("Designation", get_roles(), key="offer_role")
+            role_offer_sel = st.selectbox("Designation", PRESET_ROLES, key="offer_role_sel")
 
-        dept_offer         = st.selectbox("Department", get_departments(), key="offer_dept")
+        # Other role + responsibilities for offer letter
+        if role_offer_sel == "Other":
+            role_offer_raw = st.text_input("Type Role Name", placeholder="e.g. Cloud Solutions Engineer", key="offer_role_other")
+            role_offer = fix_text(role_offer_raw) if role_offer_raw.strip() else ""
+            if role_offer_raw.strip() and role_offer != role_offer_raw.strip():
+                st.markdown(f'<div class="fix-badge">✏️ Auto-corrected to: <b>{role_offer}</b></div>', unsafe_allow_html=True)
+
+            st.markdown('<div class="field-group-label">Roles &amp; Responsibilities</div>', unsafe_allow_html=True)
+            st.caption("Enter each responsibility on a new line — spelling and grammar will be auto-fixed")
+            rr_raw = st.text_area("Responsibilities", height=150,
+                placeholder="e.g.\ndesign and devlop web applications\nmanage databse and apis\ncollaborate with team",
+                key="offer_rr_other")
+            # Fix each line
+            rr_lines = [fix_responsibility(l) for l in rr_raw.split("\n") if l.strip()]
+            if rr_lines:
+                st.markdown("**Preview (auto-corrected):**")
+                for line in rr_lines:
+                    st.markdown(f"• {line}")
+        else:
+            role_offer = role_offer_sel
+            rr_lines = []  # will use preset from pdf_generator
+
+        dept_offer         = st.selectbox("Department", ["Analytics", "Technology", "HR", "Business Development", "Marketing", "Finance", "Operations"], key="offer_dept")
         joining_date_offer = st.date_input("Joining Date", value=date.today(), key="offer_join")
         letter_date_offer  = st.date_input("Letter Date",  value=date.today(), key="offer_letter_date")
 
@@ -497,7 +458,7 @@ with tab2:
         st.markdown('<div class="field-group-label">Salary Structure</div>', unsafe_allow_html=True)
         salary_prompt = st.text_area(
             "Salary Prompt",
-            placeholder='e.g. "6 LPA, 40% basic, no PF, 10% variable"\n"5 LPA, basic 50%, PF 12%, no variable"',
+            placeholder='e.g. "6 LPA, 40% basic, no PF, 10% variable"\n"5 LPA, basic 50%, PF 12% of 70% CTC"',
             height=80, key="salary_prompt"
         )
 
@@ -510,21 +471,20 @@ with tab2:
 
         if parse_salary_btn and salary_prompt:
             with st.spinner("Parsing salary structure..."):
-                # Groq calculates everything — use result directly, no recalculation
-                params = parse_salary_prompt_groq(salary_prompt, model=groq_model)
+                params = parse_salary_prompt_groq(salary_prompt, model="llama3-8b-8192")
                 st.session_state.salary_params = params
-                st.session_state.salary_result = params  # Groq already computed all amounts
+                st.session_state.salary_result = params
 
         if st.session_state.salary_params:
             p = st.session_state.salary_params
-            pf_display = "Not applicable" if p.get("pf_percent", 0) == 0 else f"{p.get('pf_percent')}% of Basic"
+            pf_display = "Not applicable" if p.get("pf_percent", 0) == 0 else f"{p.get('pf_percent', 0)}% of Basic"
             st.markdown(f"""
             <div class="parsed-box">
                 <span>CTC:</span> &#8377;{p['ctc_annual']:,.0f} &nbsp;|&nbsp;
-                <span>Basic:</span> {p['base_percent']}% of CTC &nbsp;|&nbsp;
-                <span>HRA:</span> {p['hra_percent']}% of Basic<br>
+                <span>Basic:</span> {p.get('base_percent', 0)}% of CTC &nbsp;|&nbsp;
+                <span>HRA:</span> {p.get('hra_percent', 0)}% of Basic<br>
                 <span>PF:</span> {pf_display} &nbsp;|&nbsp;
-                <span>Variable:</span> {p['variable_percent']}% of CTC
+                <span>Variable:</span> {p.get('variable_percent', 0)}% of CTC
             </div>
             """, unsafe_allow_html=True)
 
@@ -532,13 +492,13 @@ with tab2:
             s = st.session_state.salary_result
             st.markdown(f"""
             <table class="sal-table">
-                <tr><td>Basic Salary</td><td>{s['basic_monthly_str']}/mo</td></tr>
-                <tr><td>HRA</td><td>{s['hra_monthly_str']}/mo</td></tr>
-                <tr><td>PF — Employer</td><td>{s['pf_monthly_str']}/mo</td></tr>
-                <tr><td>Special Allowance</td><td>{s['special_allowance_monthly_str']}/mo</td></tr>
-                <tr class="gross"><td><b>Gross Monthly</b></td><td><b>{s['gross_monthly_str']}</b></td></tr>
-                <tr><td>Variable Pay (Annual)</td><td>{s['variable_annual_str']}</td></tr>
-                <tr class="ctc"><td><b>Total CTC (Annual)</b></td><td><b>{s['ctc_annual_str']}</b></td></tr>
+                <tr><td>Basic Salary</td><td>{s.get('basic_monthly_str','—')}/mo</td></tr>
+                <tr><td>HRA</td><td>{s.get('hra_monthly_str','—')}/mo</td></tr>
+                <tr><td>PF — Employer</td><td>{s.get('pf_monthly_str','—')}/mo</td></tr>
+                <tr><td>Special Allowance</td><td>{s.get('special_allowance_monthly_str','—')}/mo</td></tr>
+                <tr class="gross"><td><b>Gross Monthly</b></td><td><b>{s.get('gross_monthly_str','—')}</b></td></tr>
+                <tr><td>Variable Pay (Annual)</td><td>{s.get('variable_annual_str','—')}</td></tr>
+                <tr class="ctc"><td><b>Total CTC (Annual)</b></td><td><b>{s.get('ctc_annual_str','—')}</b></td></tr>
             </table>
             """, unsafe_allow_html=True)
 
@@ -548,6 +508,8 @@ with tab2:
         if generate_offer:
             if not offer_name_typed.strip():
                 st.error("Please enter a candidate name.")
+            elif not role_offer:
+                st.error("Please enter a role designation.")
             elif not st.session_state.salary_result:
                 st.error("Please calculate salary breakup first.")
             else:
@@ -565,6 +527,7 @@ with tab2:
                         pf_percent=p.get("pf_percent", 5.0),
                         variable_percent=p.get("variable_percent", 10),
                         letter_date=letter_date_offer.strftime("%d-%m-%Y"),
+                        custom_rr=rr_lines if rr_lines else None,
                     )
                 if result["success"]:
                     if offer_name_typed.strip() not in get_candidate_names():
@@ -578,16 +541,16 @@ with tab2:
 
         if st.session_state.get("offer_result"):
             r = st.session_state["offer_result"]
-            st.markdown(f'<div class="aa-success">\u2705 Letter ready: {r["filename"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="aa-success">✅ Letter ready: {r["filename"]}</div>', unsafe_allow_html=True)
             col_dl1, col_dl2 = st.columns(2)
             with col_dl1:
-                st.download_button("\u2B07\uFE0F Download DOCX", data=read_file_bytes(r["docx_path"]),
+                st.download_button("⬇️ Download DOCX", data=read_file_bytes(r["docx_path"]),
                     file_name=f"{r['filename']}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     key="persist_offer_docx")
             with col_dl2:
                 if r.get("pdf_path") and os.path.exists(r["pdf_path"]):
-                    st.download_button("\u2B07\uFE0F Download PDF", data=read_file_bytes(r["pdf_path"]),
+                    st.download_button("⬇️ Download PDF", data=read_file_bytes(r["pdf_path"]),
                         file_name=f"{r['filename']}.pdf", mime="application/pdf",
                         key="persist_offer_pdf")
 
@@ -607,7 +570,7 @@ with tab3:
 
         col_a, col_b = st.columns(2)
         with col_a:
-            salutation_intern = st.selectbox("Salutation", ["Ms.", "Mr.", "Dr."], key="intern_sal")
+            salutation_intern = st.selectbox("Salutation", ["Ms.", "Mr."], key="intern_sal")
         with col_b:
             reg_no = st.text_input("Reg. No.", key="intern_reg")
 
@@ -615,9 +578,21 @@ with tab3:
 
         col_c, col_d = st.columns(2)
         with col_c:
-            dept_intern = st.selectbox("Department", get_departments(), key="intern_dept")
+            dept_intern = st.selectbox("Department", COLLEGE_DEPARTMENTS, key="intern_dept")
+            if dept_intern == "Other":
+                dept_intern = st.text_input("Type Department", placeholder="e.g. Robotics Engineering", key="intern_dept_other")
+                dept_intern = fix_text(dept_intern) if dept_intern.strip() else ""
         with col_d:
-            role_intern = st.selectbox("Role", get_roles(), key="intern_role")
+            role_intern_sel = st.selectbox("Role", PRESET_ROLES, key="intern_role_sel")
+
+        # Other role for internship
+        if role_intern_sel == "Other":
+            role_intern_raw = st.text_input("Type Role Name", placeholder="e.g. Full Stack Developer Intern", key="intern_role_other")
+            role_intern = fix_text(role_intern_raw) if role_intern_raw.strip() else ""
+            if role_intern_raw.strip() and role_intern != role_intern_raw.strip():
+                st.markdown(f'<div class="fix-badge">✏️ Auto-corrected to: <b>{role_intern}</b></div>', unsafe_allow_html=True)
+        else:
+            role_intern = role_intern_sel
 
     with col2:
         st.markdown('<div class="field-group-label">Internship Period</div>', unsafe_allow_html=True)
@@ -656,21 +631,21 @@ with tab3:
             duration_months_n  = st.selectbox("Duration", [1, 2, 3, 4, 6], key="intern_dur_months",
                                                format_func=lambda x: f"{x} month{'s' if x > 1 else ''}")
             end_date_intern    = start_date_intern + relativedelta(months=duration_months_n)
-            DURATION_WORDS     = {1:"one",2:"two",3:"three",4:"four",5:"five",
-                                  6:"six",7:"seven",8:"eight",9:"nine",10:"ten"}
+            DURATION_WORDS     = {1:"one",2:"two",3:"three",4:"four",5:"five",6:"six"}
             duration_intern    = f"{DURATION_WORDS.get(duration_months_n, str(duration_months_n))} month{'s' if duration_months_n > 1 else ''}"
-            st.markdown(
-                f'<div class="dur-badge">'
-                f'End Date: {end_date_intern.strftime("%d %b %Y")} &nbsp;|&nbsp; Duration: {duration_intern}'
-                f'</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="dur-badge">End Date: {end_date_intern.strftime("%d %b %Y")} &nbsp;|&nbsp; Duration: {duration_intern}</div>', unsafe_allow_html=True)
 
         letter_date_intern = st.date_input("Letter Date", value=date.today(), key="intern_letter_date")
 
         st.markdown('<div class="field-group-label">Responsibilities</div>', unsafe_allow_html=True)
-        st.caption("Auto-filled from selected role — editable")
+        st.caption("Auto-filled from role — editable. Spelling & grammar will be auto-fixed before generating.")
 
-        auto_resp    = get_responsibilities_for_role(role_intern)
-        default_resp = "\n".join(auto_resp)
+        # Auto-fill from role
+        if role_intern_sel == "Other":
+            default_resp = ""
+        else:
+            auto_resp    = get_responsibilities_for_role(role_intern)
+            default_resp = "\n".join(auto_resp)
 
         responsibilities_text = st.text_area(
             "Responsibilities",
@@ -687,8 +662,13 @@ with tab3:
             intern_name = intern_name_typed.strip()
             if not intern_name:
                 st.error("Please enter an intern name.")
+            elif not role_intern:
+                st.error("Please enter a role.")
             else:
-                responsibilities = [r.strip() for r in responsibilities_text.split("\n") if r.strip()]
+                # Auto-fix each responsibility line
+                raw_lines = [l.strip() for l in responsibilities_text.split("\n") if l.strip()]
+                responsibilities = [fix_responsibility(l) for l in raw_lines]
+
                 with st.spinner("Generating certificate..."):
                     result = generate_internship(
                         intern_name=intern_name,
@@ -718,16 +698,16 @@ with tab3:
 
         if st.session_state.get("intern_result"):
             r = st.session_state["intern_result"]
-            st.markdown(f'<div class="aa-success">\u2705 Certificate ready: {r["filename"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="aa-success">✅ Certificate ready: {r["filename"]}</div>', unsafe_allow_html=True)
             col_dl1, col_dl2 = st.columns(2)
             with col_dl1:
-                st.download_button("\u2B07\uFE0F Download DOCX", data=read_file_bytes(r["docx_path"]),
+                st.download_button("⬇️ Download DOCX", data=read_file_bytes(r["docx_path"]),
                     file_name=f"{r['filename']}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     key="persist_intern_docx")
             with col_dl2:
                 if r.get("pdf_path") and os.path.exists(r["pdf_path"]):
-                    st.download_button("\u2B07\uFE0F Download PDF", data=read_file_bytes(r["pdf_path"]),
+                    st.download_button("⬇️ Download PDF", data=read_file_bytes(r["pdf_path"]),
                         file_name=f"{r['filename']}.pdf", mime="application/pdf",
                         key="persist_intern_pdf")
 
@@ -754,9 +734,6 @@ with tab4:
                 c3.caption(f"**Role:** {record.get('role','—')}")
                 if record.get("ctc"):
                     st.caption(f"**CTC:** {record.get('ctc')}")
-                if record.get("joining_date"):
-                    st.caption(f"**Joining Date:** {record.get('joining_date')}")
-
                 dl1, dl2 = st.columns(2)
                 if record.get("docx_path") and os.path.exists(record["docx_path"]):
                     with dl1:
