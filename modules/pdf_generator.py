@@ -315,9 +315,12 @@ def _pre_offer_pdf(ctx, pdf_path):
     nm  = ctx.get("candidate_name", "")
     rol = ctx.get("role", "")
     doj = ctx.get("joining_date", "")
-    stipend   = ctx.get("stipend",   "\u20b910,000")
-    incentive = ctx.get("incentive", "\u20b915,000")
-    p   = _pronoun(sal)
+    stipend      = ctx.get("stipend",   "\u20b910,000")
+    incentive    = ctx.get("incentive", "")
+    ctc_range    = ctx.get("ctc_range", "\u20b94 LPA to \u20b96 LPA")
+    training_dur = ctx.get("training_period", None)
+    prob_start   = ctx.get("probation_start", None)
+    p            = _pronoun(sal)
 
     doc = _doc(pdf_path)
     st  = []
