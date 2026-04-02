@@ -318,9 +318,10 @@ def _pre_offer_pdf(ctx, pdf_path):
     stipend      = ctx.get("stipend",   "\u20b910,000")
     incentive    = ctx.get("incentive", "")
     ctc_range    = ctx.get("ctc_range", "\u20b94 LPA to \u20b96 LPA")
-    training_dur = ctx.get("training_period", None)
-    prob_start   = ctx.get("probation_start", None)
-    p            = _pronoun(sal)
+    training_dur  = ctx.get("training_period", None)
+    prob_start    = ctx.get("probation_start", None)
+    has_probation = ctx.get("has_probation", True)
+    p             = _pronoun(sal)
 
     doc = _doc(pdf_path)
     st  = []
@@ -330,15 +331,26 @@ def _pre_offer_pdf(ctx, pdf_path):
     st.append(Paragraph(
         f'This is to formally acknowledge that <b>{sal} {nm}</b> has been engaged with '
         f'<b>Analytics Avenue LLP</b> in the role of <b>{rol}</b>', s["B"]))
-    if training_dur and prob_start:
+    st.append(Spacer(1, 3*mm))
+    if training_dur and has_probation and prob_start:
+        # Both training and probation
         st.append(Paragraph(
             f'The candidate will undergo a <b>Training Period of {training_dur}</b> commencing from <b>{doj}</b>, '
             f'followed by a <b>Probationary Period of two to four months</b> starting from <b>{prob_start}</b>.', s["B"]))
-    else:
+    elif training_dur and not has_probation:
+        # Only training, no probation
+        st.append(Paragraph(
+            f'The candidate will undergo a <b>Training Period of {training_dur}</b> commencing from <b>{doj}</b>.', s["B"]))
+    elif has_probation:
+        # Only probation, no training
         st.append(Paragraph(
             f'The actual engagement shall commence with a <b>probationary period ranging from '
-            f'two to four months</b>, <b>effective from {doj}, the date of joining.</b>', s["B"]))
-
+            f'two to four months</b>, effective from <b>{doj}</b>, the date of joining.', s["B"]))
+    else:
+        # Neither training nor probation
+        st.append(Paragraph(
+            f'The actual engagement with <b>Analytics Avenue LLP</b> shall commence from <b>{doj}</b>.', s["B"]))
+    st.append(Spacer(1, 3*mm))
     st.append(Paragraph("<b>Compensation During Probation</b>", s["SH"]))
     st.append(Paragraph(
         "During the probation period, the candidate will be entitled to the "
@@ -353,17 +365,23 @@ def _pre_offer_pdf(ctx, pdf_path):
             "The performance incentive is variable in nature and will be evaluated based on "
             "internal performance review mechanisms.", s))
 
+    st.append(Spacer(1, 3*mm))
     st.append(Paragraph("<b>Confirmation, Promotion &amp; Post-Confirmation Compensation</b>", s["SH"]))
     st.append(Paragraph(
         f'Upon <b>successful completion of the probation period</b> and meeting the prescribed '
-        f'performance expectations, <b>{p["sub"]}</b> will be considered for role confirmation '
+        f'performance expectations, {p["sub"]} will be considered for role confirmation '
         f'with an annual compensation structure (CTC) within the range of '
-        f'<b>\u20b94 LPA to \u20b96 LPA</b>, comprising:', s["B"]))
+        f'<b>{ctc_range}</b>, comprising:', s["B"]))
     st.append(_bul("Base Pay", s))
     st.append(_bul("Variable / Performance-Based Pay", s))
     st.append(_bul(
         "Applicable Statutory Benefits, including gratuity, as per prevailing laws "
         "and company policy", s))
+    # Add some key points on page 1 to fill space
+    st.append(Paragraph("<b>Key Terms</b>", s["SH"]))
+    st.append(_bul("<b>Training-Cum-Service Bond:</b> The employee is required to serve the company for <b>12 months</b> from the date of joining. Early exit may attract training cost recovery of up to <b>₹1,00,000</b>.", s))
+    st.append(_bul("<b>Notice Period:</b> The official notice period is <b>90 days</b>. Failure to serve the full notice period may result in termination records.", s))
+    st.append(_bul("<b>Performance Management:</b> Repeated escalations (more than 5) may lead to proportionate salary deductions of <b>₹1,000</b> per instance.", s))
 
     # PAGE 2 — compact to fit all content
     from reportlab.lib.styles import ParagraphStyle as PS2
