@@ -740,6 +740,9 @@ def expand_responsibility(keyword: str, role: str) -> str:
     # Fallback: use keyword map for common terms
     EXPAND_MAP = {
         'multimodal': 'Design and develop multimodal AI systems integrating text, image, and audio inputs.',
+        'multimodel': 'Design and develop multimodal AI systems integrating text, image, and audio inputs.',
+        'multi modal': 'Design and develop multimodal AI systems integrating text, image, and audio inputs.',
+        'multi model': 'Design and develop multimodal AI systems integrating text, image, and audio inputs.',
         'docker': 'Containerize and deploy applications using Docker and container orchestration tools.',
         'kubernetes': 'Manage and orchestrate containerized applications using Kubernetes.',
         'ci/cd': 'Build and maintain CI/CD pipelines for automated testing and deployment.',
@@ -760,14 +763,50 @@ def expand_responsibility(keyword: str, role: str) -> str:
         'agile': 'Work in an Agile/Scrum environment with sprint planning and daily standups.',
         'data pipeline': 'Build and maintain scalable data pipelines for processing large datasets.',
         'machine learning': 'Develop and deploy machine learning models for production use cases.',
+        'sentiment analysis': 'Build and deploy sentiment analysis models for text classification tasks.',
+        'nlp': 'Develop NLP pipelines for text processing, classification, and information extraction.',
+        'computer vision': 'Build computer vision models for image recognition and object detection tasks.',
+        'data pipeline': 'Design and maintain scalable data pipelines for processing large datasets.',
+        'blockchain': 'Develop and integrate blockchain-based solutions for secure data transactions.',
+        'microservices': 'Design and implement microservices architecture for scalable applications.',
+        'react': 'Build responsive and interactive user interfaces using React.js.',
+        'nextjs': 'Develop server-side rendered web applications using Next.js.',
+        'angular': 'Build enterprise-grade web applications using Angular framework.',
+        'vue': 'Develop dynamic user interfaces using Vue.js.',
+        'flask': 'Build lightweight web applications and REST APIs using Flask.',
+        'django': 'Develop robust web applications using Django framework.',
+        'fastapi': 'Build high-performance REST APIs using FastAPI.',
+        'tensorflow': 'Train and deploy deep learning models using TensorFlow.',
+        'pytorch': 'Develop and experiment with neural networks using PyTorch.',
+        'langchain': 'Build LLM-powered applications using LangChain framework.',
+        'opencv': 'Implement computer vision solutions using OpenCV.',
+        'spark': 'Process large-scale datasets using Apache Spark.',
+        'kafka': 'Build real-time data streaming pipelines using Apache Kafka.',
+        'mongodb': 'Design and manage NoSQL databases using MongoDB.',
+        'postgresql': 'Implement and optimize relational databases using PostgreSQL.',
     }
     kw_lower = keyword.lower()
     for key, expansion in EXPAND_MAP.items():
         if key in kw_lower:
             return expansion
 
-    # Last resort: just fix the line as-is
-    return fix_responsibility_line(keyword)
+    # Last resort: construct a meaningful sentence
+    kw_clean = fix_spelling(keyword).strip().rstrip('.')
+    if len(kw_clean.split()) == 1:
+        # Single word — wrap it
+        return f"Work on {kw_clean}-related tasks and deliverables."
+    else:
+        # Multi word — make it a proper sentence with action verb
+        words = kw_clean.split()
+        first = words[0].lower()
+        # If first word is already an action verb, just fix it
+        action_verbs = ['build','develop','design','manage','create','implement',
+                        'maintain','deploy','analyze','test','write','support',
+                        'coordinate','handle','prepare','conduct','assist']
+        if first in action_verbs:
+            return fix_responsibility_line(kw_clean)
+        else:
+            return fix_responsibility_line(f"Work on {kw_clean} tasks and ensure quality delivery.")
 
 
 def complete_responsibilities(lines: list, role: str, min_points: int = 5) -> list:
