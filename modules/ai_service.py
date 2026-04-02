@@ -702,12 +702,80 @@ def fix_responsibility_line(line: str) -> str:
     return line
 
 
+def expand_responsibility(keyword: str, role: str) -> str:
+    """
+    Use Groq to expand a short keyword into a proper responsibility sentence.
+    e.g. "multimodal" + "AI Engineer" → "Design and develop multimodal AI systems..."
+    Falls back to simple capitalization if Groq unavailable.
+    """
+    keyword = keyword.strip()
+    if not keyword:
+        return keyword
+
+    # If already a proper sentence (>6 words), just fix it
+    if len(keyword.split()) > 6:
+        return fix_responsibility_line(keyword)
+
+    # Try Groq
+    client = get_groq_client()
+    if client:
+        try:
+            prompt = (
+                f"Convert this keyword/phrase into ONE proper professional responsibility sentence "
+                f"for a {role} job role. Return ONLY the sentence, nothing else.\n"
+                f"Keyword: {keyword}"
+            )
+            response = client.chat.completions.create(
+                model="llama3-8b-8192",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3, max_tokens=80,
+            )
+            result = response.choices[0].message.content.strip()
+            result = re.sub(r"^[\-\u2022\*\"\']+\s*", "", result).strip()
+            if result and len(result.split()) > 3:
+                return fix_responsibility_line(result)
+        except Exception:
+            pass
+
+    # Fallback: use keyword map for common terms
+    EXPAND_MAP = {
+        'multimodal': 'Design and develop multimodal AI systems integrating text, image, and audio inputs.',
+        'docker': 'Containerize and deploy applications using Docker and container orchestration tools.',
+        'kubernetes': 'Manage and orchestrate containerized applications using Kubernetes.',
+        'ci/cd': 'Build and maintain CI/CD pipelines for automated testing and deployment.',
+        'llm': 'Fine-tune and deploy Large Language Models (LLMs) for domain-specific applications.',
+        'rag': 'Design and implement Retrieval-Augmented Generation (RAG) pipelines for AI applications.',
+        'api': 'Design, develop, and maintain RESTful APIs for seamless system integration.',
+        'aws': 'Deploy and manage cloud infrastructure on Amazon Web Services (AWS).',
+        'azure': 'Manage and optimize services on Microsoft Azure cloud platform.',
+        'gcp': 'Implement and manage solutions on Google Cloud Platform (GCP).',
+        'sql': 'Write and optimize complex SQL queries for data extraction and analysis.',
+        'python': 'Develop efficient and maintainable Python scripts and applications.',
+        'react': 'Build responsive and interactive user interfaces using React.js.',
+        'node': 'Develop server-side applications and APIs using Node.js.',
+        'testing': 'Write and execute unit, integration, and end-to-end tests for quality assurance.',
+        'documentation': 'Maintain clear and comprehensive technical documentation for all modules.',
+        'client meeting': 'Participate in client meetings to gather requirements and present solutions.',
+        'code review': 'Conduct code reviews to ensure code quality, standards, and best practices.',
+        'agile': 'Work in an Agile/Scrum environment with sprint planning and daily standups.',
+        'data pipeline': 'Build and maintain scalable data pipelines for processing large datasets.',
+        'machine learning': 'Develop and deploy machine learning models for production use cases.',
+    }
+    kw_lower = keyword.lower()
+    for key, expansion in EXPAND_MAP.items():
+        if key in kw_lower:
+            return expansion
+
+    # Last resort: just fix the line as-is
+    return fix_responsibility_line(keyword)
+
+
 def complete_responsibilities(lines: list, role: str, min_points: int = 5) -> list:
     """
     If fewer than min_points given, auto-add relevant points based on role.
     Returns completed list of responsibilities.
     """
-    fixed = [fix_responsibility_line(l) for l in lines if l.strip()]
+    fixed = [expand_responsibility(l, role) for l in lines if l.strip()]
 
     if len(fixed) >= min_points:
         return fixed
