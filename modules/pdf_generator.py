@@ -407,8 +407,8 @@ def _pre_offer_pdf(ctx, pdf_path):
     # PAGE 2 — compact to fit all content
     from reportlab.lib.styles import ParagraphStyle as PS2
     from reportlab.lib.enums import TA_JUSTIFY as TAJ2
-    P2  = PS2(name="P2B",  fontName=FR, fontSize=10.5, leading=15, textColor=BLACK, alignment=TAJ2, spaceAfter=5)
-    P2S = PS2(name="P2S",  fontName=FR, fontSize=10.5, leading=14, textColor=BLACK, leftIndent=24, spaceAfter=2)
+    P2  = PS2(name="P2B",  fontName=FR, fontSize=10,   leading=14, textColor=BLACK, alignment=TAJ2, spaceAfter=3)
+    P2S = PS2(name="P2S",  fontName=FR, fontSize=10,   leading=13, textColor=BLACK, leftIndent=24, spaceAfter=1)
     from reportlab.platypus import Paragraph as _Pa
     def _s2(l, t): return _Pa(f"{l}. {t}", P2S)
 
@@ -461,7 +461,7 @@ def _pre_offer_pdf(ctx, pdf_path):
     st.append(Paragraph("<b>4. Performance Management:</b> Repeated performance escalations (more than five (5)) may lead to proportionate salary deductions of <b>₹1,000</b> per instance.", P2))
     st.append(Paragraph("<b>5. Working Hours &amp; Shifts:</b> The employee should be willing to work in any shifts and on weekends, if required, based on business needs.", P2))
     st.append(Paragraph("<b>Notice Period:</b> The company’s official notice period is 90 days. Failure to serve the full notice period may result in the employee being marked as terminated in company.", P2))
-    st.append(Spacer(1, 3*mm))
+    st.append(Spacer(1, 2*mm))
     st += _sig_block(s, "Analytics Avenue LLP")
     st.append(Spacer(1, 2*mm))
     st.append(Paragraph("<b>Acceptance of Offer:</b>", s["SGN"]))
