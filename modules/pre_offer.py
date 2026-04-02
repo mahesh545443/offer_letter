@@ -41,6 +41,7 @@ def generate_pre_offer(
         "ctc_range":       ctc_range,
         "training_period": training_period,
         "probation_start": probation_start,
+        "has_probation":   has_probation,
         "custom_rr":       custom_rr or [],
     }
 
