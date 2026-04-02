@@ -277,7 +277,7 @@ def _pronoun(salutation):
     return {"sub": "she", "obj": "her", "pos": "her", "cap": "Her"}
 
 
-def _sig_block(s, company="Analytics Avenue"):
+def _sig_block(s, company="Analytics Avenue LLP"):
     items = []
     sig = _sig()
     if sig:
@@ -400,10 +400,10 @@ def _pre_offer_pdf(ctx, pdf_path):
     st.append(Paragraph("<b>5. Working Hours &amp; Shifts:</b> The employee should be willing to work in any shifts and on weekends, if required, based on business needs.", P2))
     st.append(Paragraph("<b>Notice Period:</b> The company’s official notice period is 90 days. Failure to serve the full notice period may result in the employee being marked as terminated in company.", P2))
     st.append(Spacer(1, 3*mm))
-    st += _sig_block(s, "Analytics Avenue")
+    st += _sig_block(s, "Analytics Avenue LLP")
     st.append(Spacer(1, 2*mm))
     st.append(Paragraph("<b>Acceptance of Offer:</b>", s["SGN"]))
-    st.append(Paragraph(f"I, _____________________ accept the position of <b>{rol}</b> at Analytics Avenue under the terms and conditions outlined in this offer letter and the document attached.", P2))
+    st.append(Paragraph(f"I, _____________________ accept the position of <b>{rol}</b> at <b>Analytics Avenue LLP</b> under the terms and conditions outlined in this offer letter and the document attached.", P2))
     st.append(Spacer(1, 3*mm))
     st.append(Paragraph("<b>Signature:</b>", s["SGN"]))
     st.append(Spacer(1, 3*mm))
@@ -493,7 +493,7 @@ def _internship_pdf(ctx, pdf_path):
         "Completion</b> from <b>Analytics Avenue LLP</b>.", BC_style))
 
     st.append(Spacer(1, 12*mm))
-    st += _sig_block(s, "Analytics Avenue and Advanced Analytics")
+    st += _sig_block(s, "Analytics Avenue LLP")
 
     doc.build(st)
 
@@ -639,7 +639,7 @@ def _offer_letter_pdf(ctx, pdf_path):
     st.append(Paragraph("<b>Acceptance of Offer:</b>", s["SGN"]))
     st.append(Paragraph(
         f"I, _____________________ accept the offer of employment as <b>{rol}</b> at "
-        "Analytics Avenue LLP under the terms and conditions outlined in this offer letter.",
+        "<b>Analytics Avenue LLP</b> under the terms and conditions outlined in this offer letter.",
         s["B"]))
     st.append(Spacer(1, 6*mm))
     st.append(Paragraph("<b>Signature:</b>", s["SGN"]))
