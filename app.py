@@ -226,81 +226,87 @@ with tab1:
         probation_dur = None
 
         if has_training:
-            col_td, col_ts, col_te = st.columns(3)
-            with col_td:
-                training_dur = st.selectbox("Training Duration",
-                    ["None", "15 days", "1 month", "2 months", "3 months"],
-                    key="pre_training_dur")
+            # Step 1: Duration dropdown
+            training_dur = st.selectbox("Training Duration",
+                ["None", "15 days", "1 month", "2 months", "3 months"],
+                key="pre_training_dur")
+
+            # Step 2: Compute auto dates from duration
+            if training_dur == "None":
+                default_t_start = joining_date_pre
+                default_t_end   = joining_date_pre
+            elif "day" in training_dur:
+                default_t_start = joining_date_pre
+                default_t_end   = joining_date_pre + timedelta(days=int(training_dur.split()[0]))
+            else:
+                default_t_start = joining_date_pre
+                default_t_end   = joining_date_pre + relativedelta(months=int(training_dur.split()[0]))
+
+            # Step 3: Show start and end date (pre-filled, editable)
+            col_ts, col_te = st.columns(2)
             with col_ts:
                 training_start_disp = st.date_input("Training Start Date",
-                    value=joining_date_pre, key="pre_training_start_disp")
+                    value=default_t_start, key="pre_training_start_disp")
             with col_te:
-                # Auto-calc end from duration if not None
-                if training_dur == "None":
-                    auto_t_end = joining_date_pre
-                elif "day" in training_dur:
-                    auto_t_end = training_start_disp + timedelta(days=int(training_dur.split()[0]))
-                else:
-                    auto_t_end = training_start_disp + relativedelta(months=int(training_dur.split()[0]))
                 training_end = st.date_input("Training End Date",
-                    value=auto_t_end, key="pre_training_end")
+                    value=default_t_end, key="pre_training_end")
 
-            # Calc actual duration from dates for letter
-            t_delta = (training_end - training_start_disp).days
-            if t_delta > 0:
-                t_months = relativedelta(training_end, training_start_disp).months
-                t_days   = relativedelta(training_end, training_start_disp).days
-                if t_months > 0 and t_days == 0:
-                    DWORDS = {1:"one",2:"two",3:"three",4:"four"}
-                    training_dur_text = f"{DWORDS.get(t_months, str(t_months))} month{'s' if t_months>1 else ''}"
-                elif t_days > 0 and t_months == 0:
-                    training_dur_text = f"{t_days} days"
-                else:
-                    training_dur_text = training_dur if training_dur != "None" else ""
+            # Step 4: Calc actual duration from final dates for letter
+            rd = relativedelta(training_end, training_start_disp)
+            t_months = rd.months + rd.years * 12
+            t_days   = (training_end - training_start_disp).days
+            DWORDS = {1:"one",2:"two",3:"three",4:"four",5:"five",6:"six"}
+            if t_months > 0:
+                training_dur_text = f"{DWORDS.get(t_months, str(t_months))} month{'s' if t_months>1 else ''}"
+            elif t_days > 0:
+                training_dur_text = f"{t_days} day{'s' if t_days>1 else ''}"
             else:
                 training_dur_text = ""
 
-            st.markdown(f'<div class="dur-badge">Training: {training_start_disp.strftime("%d %b %Y")} → {training_end.strftime("%d %b %Y")}{" ("+training_dur_text+")" if training_dur_text else ""}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="dur-badge">Training: {training_start_disp.strftime("%d %b %Y")} → {training_end.strftime("%d %b %Y")}{" · "+training_dur_text if training_dur_text else ""}</div>', unsafe_allow_html=True)
         else:
             training_end      = joining_date_pre
             training_dur_text = None
 
         if has_probation:
-            col_pd, col_ps, col_pe = st.columns(3)
-            with col_pd:
-                probation_dur_sel = st.selectbox("Probation Duration",
-                    ["None", "1-2 months", "2-3 months", "2-4 months", "3-4 months", "3-6 months"],
-                    index=3, key="pre_probation_dur")
+            # Step 1: Duration dropdown
+            probation_dur_sel = st.selectbox("Probation Duration",
+                ["None", "1-2 months", "2-3 months", "2-4 months", "3-4 months", "3-6 months"],
+                index=3, key="pre_probation_dur")
+
+            # Step 2: Compute auto dates from duration
+            if probation_dur_sel == "None":
+                default_p_start = training_end
+                default_p_end   = training_end
+            else:
+                prob_max = int(probation_dur_sel.split("-")[1].split()[0])
+                default_p_start = training_end
+                default_p_end   = training_end + relativedelta(months=prob_max)
+
+            # Step 3: Show start and end date (pre-filled, editable)
+            col_ps, col_pe = st.columns(2)
             with col_ps:
                 probation_start = st.date_input("Probation Start Date",
-                    value=training_end, key="pre_probation_start")
+                    value=default_p_start, key="pre_probation_start")
             with col_pe:
-                # Auto end from duration
-                if probation_dur_sel == "None":
-                    auto_p_end = probation_start
-                else:
-                    prob_max = int(probation_dur_sel.split("-")[1].split()[0])
-                    auto_p_end = probation_start + relativedelta(months=prob_max)
                 probation_end = st.date_input("Probation End Date",
-                    value=auto_p_end, key="pre_probation_end")
+                    value=default_p_end, key="pre_probation_end")
 
-            # Calc actual duration from dates for letter
-            p_delta = relativedelta(probation_end, probation_start)
-            actual_months = p_delta.months + p_delta.years * 12
-            dur_words = {1:"one",2:"two",3:"three",4:"four",5:"five",6:"six"}
-            dur_range = {
-                "1-2 months": "one to two months",
-                "2-3 months": "two to three months",
-                "2-4 months": "two to four months",
-                "3-4 months": "three to four months",
-                "3-6 months": "three to six months",
+            # Step 4: Calc actual duration from final dates for letter
+            p_rd = relativedelta(probation_end, probation_start)
+            actual_months = p_rd.months + p_rd.years * 12
+            DWORDS = {1:"one",2:"two",3:"three",4:"four",5:"five",6:"six"}
+            DUR_RANGE = {
+                "1-2 months":"one to two months", "2-3 months":"two to three months",
+                "2-4 months":"two to four months", "3-4 months":"three to four months",
+                "3-6 months":"three to six months",
             }
-            if actual_months in dur_words:
-                probation_dur = f"{dur_words[actual_months]} month{'s' if actual_months > 1 else ''}"
+            if actual_months in DWORDS:
+                probation_dur = f"{DWORDS[actual_months]} month{'s' if actual_months>1 else ''}"
             else:
-                probation_dur = dur_range.get(probation_dur_sel, "two to four months")
+                probation_dur = DUR_RANGE.get(probation_dur_sel, "two to four months")
 
-            st.markdown(f'<div class="dur-badge">Probation: {probation_start.strftime("%d %b %Y")} → {probation_end.strftime("%d %b %Y")} ({probation_dur})</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="dur-badge">Probation: {probation_start.strftime("%d %b %Y")} → {probation_end.strftime("%d %b %Y")} · {probation_dur}</div>', unsafe_allow_html=True)
 
         # CTC Range
         st.markdown('<div class="field-group-label">Post-Confirmation CTC Range</div>', unsafe_allow_html=True)
