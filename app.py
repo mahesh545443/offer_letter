@@ -226,44 +226,67 @@ with tab1:
         probation_dur = None
 
         if has_training:
-            # Training: all 3 in one row
             col_td, col_ts, col_te = st.columns(3)
             with col_td:
                 training_dur = st.selectbox("Training Duration",
-                    ["15 days", "1 month", "2 months", "3 months"], key="pre_training_dur")
-            # Compute auto end from duration
-            if "day" in training_dur:
-                auto_t_end = joining_date_pre + timedelta(days=int(training_dur.split()[0]))
-            else:
-                auto_t_end = joining_date_pre + relativedelta(months=int(training_dur.split()[0]))
+                    ["None", "15 days", "1 month", "2 months", "3 months"],
+                    key="pre_training_dur")
             with col_ts:
                 training_start_disp = st.date_input("Training Start Date",
                     value=joining_date_pre, key="pre_training_start_disp")
             with col_te:
+                # Auto-calc end from duration if not None
+                if training_dur == "None":
+                    auto_t_end = joining_date_pre
+                elif "day" in training_dur:
+                    auto_t_end = training_start_disp + timedelta(days=int(training_dur.split()[0]))
+                else:
+                    auto_t_end = training_start_disp + relativedelta(months=int(training_dur.split()[0]))
                 training_end = st.date_input("Training End Date",
                     value=auto_t_end, key="pre_training_end")
-            st.markdown(f'<div class="dur-badge">Training: {training_start_disp.strftime("%d %b %Y")} → {training_end.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
+
+            # Calc actual duration from dates for letter
+            t_delta = (training_end - training_start_disp).days
+            if t_delta > 0:
+                t_months = relativedelta(training_end, training_start_disp).months
+                t_days   = relativedelta(training_end, training_start_disp).days
+                if t_months > 0 and t_days == 0:
+                    DWORDS = {1:"one",2:"two",3:"three",4:"four"}
+                    training_dur_text = f"{DWORDS.get(t_months, str(t_months))} month{'s' if t_months>1 else ''}"
+                elif t_days > 0 and t_months == 0:
+                    training_dur_text = f"{t_days} days"
+                else:
+                    training_dur_text = training_dur if training_dur != "None" else ""
+            else:
+                training_dur_text = ""
+
+            st.markdown(f'<div class="dur-badge">Training: {training_start_disp.strftime("%d %b %Y")} → {training_end.strftime("%d %b %Y")}{" ("+training_dur_text+")" if training_dur_text else ""}</div>', unsafe_allow_html=True)
         else:
-            training_end = joining_date_pre
+            training_end      = joining_date_pre
+            training_dur_text = None
 
         if has_probation:
-            # Probation: all 3 in one row
             col_pd, col_ps, col_pe = st.columns(3)
             with col_pd:
                 probation_dur_sel = st.selectbox("Probation Duration",
-                    ["1-2 months", "2-3 months", "2-4 months", "3-4 months", "3-6 months"],
-                    index=2, key="pre_probation_dur")
-            prob_max = int(probation_dur_sel.split("-")[1].split()[0])
+                    ["None", "1-2 months", "2-3 months", "2-4 months", "3-4 months", "3-6 months"],
+                    index=3, key="pre_probation_dur")
             with col_ps:
                 probation_start = st.date_input("Probation Start Date",
                     value=training_end, key="pre_probation_start")
             with col_pe:
-                auto_prob_end = probation_start + relativedelta(months=prob_max)
+                # Auto end from duration
+                if probation_dur_sel == "None":
+                    auto_p_end = probation_start
+                else:
+                    prob_max = int(probation_dur_sel.split("-")[1].split()[0])
+                    auto_p_end = probation_start + relativedelta(months=prob_max)
                 probation_end = st.date_input("Probation End Date",
-                    value=auto_prob_end, key="pre_probation_end")
+                    value=auto_p_end, key="pre_probation_end")
 
-            # Duration text for letter — from actual dates
-            actual_months = relativedelta(probation_end, probation_start).months +                             relativedelta(probation_end, probation_start).years * 12
+            # Calc actual duration from dates for letter
+            p_delta = relativedelta(probation_end, probation_start)
+            actual_months = p_delta.months + p_delta.years * 12
             dur_words = {1:"one",2:"two",3:"three",4:"four",5:"five",6:"six"}
             dur_range = {
                 "1-2 months": "one to two months",
@@ -272,12 +295,12 @@ with tab1:
                 "3-4 months": "three to four months",
                 "3-6 months": "three to six months",
             }
-            probation_dur = dur_words.get(actual_months, dur_range.get(probation_dur_sel, "two to four months")) +                             (" month" if actual_months == 1 else " months" if actual_months in dur_words else "")
-            # Clean up if already has "months"
-            if "months months" in probation_dur:
-                probation_dur = probation_dur.replace(" months months", " months")
+            if actual_months in dur_words:
+                probation_dur = f"{dur_words[actual_months]} month{'s' if actual_months > 1 else ''}"
+            else:
+                probation_dur = dur_range.get(probation_dur_sel, "two to four months")
 
-            st.markdown(f'<div class="dur-badge">Probation: {probation_start.strftime("%d %b %Y")} → {probation_end.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="dur-badge">Probation: {probation_start.strftime("%d %b %Y")} → {probation_end.strftime("%d %b %Y")} ({probation_dur})</div>', unsafe_allow_html=True)
 
         # CTC Range
         st.markdown('<div class="field-group-label">Post-Confirmation CTC Range</div>', unsafe_allow_html=True)
@@ -364,7 +387,7 @@ with tab1:
                         stipend=stipend_pre,
                         incentive=incentive_pre,
                         ctc_range=ctc_range_display,
-                        training_period=training_dur,
+                        training_period=training_dur_text if has_training else None,
                         probation_start=probation_start.strftime("%d-%m-%Y") if has_probation and probation_start else None,
                         probation_dur=probation_dur if probation_dur else "two to four months",
                         has_probation=has_probation,
