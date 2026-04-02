@@ -30,7 +30,7 @@ from modules.offer_letter import generate_offer_letter
 from modules.pdf_generator import read_file_bytes
 from modules.ai_service import (
     fix_role_name, fix_responsibility_line,
-    complete_responsibilities, ROLE_DEFAULTS
+    complete_responsibilities, expand_responsibility, ROLE_DEFAULTS
 )
 
 # ─── Page Config ──────────────────────────────────────────────
