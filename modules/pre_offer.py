@@ -23,6 +23,7 @@ def generate_pre_offer(
     ctc_range: str = "\u20b94 LPA to \u20b96 LPA",
     training_period: str = None,
     probation_start: str = None,
+    has_probation: bool = True,
     custom_rr: list = None,
 ) -> dict:
     """Generate Pre-Offer Letter PDF and DOCX."""
