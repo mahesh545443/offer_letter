@@ -201,31 +201,18 @@ with tab1:
                 placeholder="e.g.\nbuild llm pipeline\nclient meetings\ndocker deployment",
                 key="pre_rr_other")
             pre_rr_lines = [l.strip() for l in pre_rr_raw.split("\n") if l.strip()]
-            pre_rr_fixed = complete_responsibilities(pre_rr_lines, role_pre or "General", min_points=5)
-            pre_rr_corrected = "\n".join(pre_rr_fixed)
+            pre_rr_expanded = [expand_responsibility(l, role_pre) for l in pre_rr_lines]
+            pre_rr_all = complete_responsibilities(pre_rr_expanded, role_pre or "General", min_points=5)
+            pre_rr_default = "\n".join(pre_rr_all)
 
-            # Use session_state so edits persist across reruns
-            pre_rr_state_key = f"pre_rr_final_{role_pre}"
-            pre_rr_role_key = "pre_rr_role_prev"
-            if st.session_state.get(pre_rr_role_key) != role_pre:
-                st.session_state[pre_rr_state_key] = pre_rr_corrected
-                st.session_state[pre_rr_role_key] = role_pre
-
-            if pre_rr_raw.strip():
-                current_pre = st.session_state.get(pre_rr_state_key, pre_rr_corrected)
-                new_pre_lines = complete_responsibilities(pre_rr_lines, role_pre or "General", min_points=0)
-                existing_pre = set(current_pre.split("\n"))
-                for nl in new_pre_lines:
-                    if nl not in existing_pre:
-                        current_pre = current_pre + "\n" + nl
-                st.session_state[pre_rr_state_key] = current_pre
-
-            pre_rr_edited = st.text_area("✏️ Review & Edit — Add or modify points here",
-                value=st.session_state.get(pre_rr_state_key, pre_rr_corrected),
-                height=200, key="pre_rr_editbox",
-                help="Edit freely — add more points, fix wording. All points go into the letter.")
-            st.session_state[pre_rr_state_key] = pre_rr_edited
-            pre_rr_final = [fix_responsibility_line(l) for l in pre_rr_edited.split("\n") if l.strip()]
+            st.caption("✏️ Edit points below — add more lines, change wording, delete unwanted points")
+            pre_rr_final_text = st.text_area(
+                "Responsibilities (editable)",
+                value=pre_rr_default,
+                height=220,
+                key=f"pre_rr_final_{role_pre}_{len(pre_rr_lines)}",
+                label_visibility="collapsed")
+            pre_rr_final = [l.strip() for l in pre_rr_final_text.split("\n") if l.strip()]
         else:
             role_pre = role_pre_sel
             pre_rr_fixed = []
@@ -496,39 +483,28 @@ with tab2:
 
             st.markdown('<div class="field-group-label">Roles &amp; Responsibilities</div>', unsafe_allow_html=True)
             st.caption("Enter each point on a new line — spelling & grammar auto-fixed, minimum 5 points auto-added")
-            rr_raw = st.text_area("Type keywords or extra points (optional)",
+            # Step 1: HR types keywords/points
+            rr_raw = st.text_area(
+                "Type keywords or points (e.g. llm rag, docker, client meeting)",
                 height=80,
-                placeholder="e.g.\nbuild llm pipeline\ndeploy docker to aws\nclient meetings",
+                placeholder="llm rag\ndocker\nclient meeting",
                 key="offer_rr_raw")
+
+            # Step 2: Expand keywords + fill role defaults → show in editable box
             rr_lines = [l.strip() for l in rr_raw.split("\n") if l.strip()]
+            rr_expanded = [expand_responsibility(l, role_offer) for l in rr_lines]
+            rr_all = complete_responsibilities(rr_expanded, role_offer or "General", min_points=5)
+            rr_default_text = "\n".join(rr_all)
 
-            # Generate corrected points — use session_state so edits persist
-            rr_state_key = f"offer_rr_final_{role_offer}"
-            rr_fixed = complete_responsibilities(rr_lines, role_offer or "General", min_points=5)
-            rr_corrected_text = "\n".join(rr_fixed)
-
-            # Only reset to auto-generated if role changed or first time
-            rr_role_key = f"offer_rr_role_prev"
-            if st.session_state.get(rr_role_key) != role_offer:
-                st.session_state[rr_state_key] = rr_corrected_text
-                st.session_state[rr_role_key] = role_offer
-
-            # Also merge any new keywords HR typed in raw box
-            if rr_raw.strip():
-                current_val = st.session_state.get(rr_state_key, rr_corrected_text)
-                new_lines = complete_responsibilities(rr_lines, role_offer or "General", min_points=0)
-                existing = set(current_val.split("\n"))
-                for nl in new_lines:
-                    if nl not in existing:
-                        current_val = current_val + "\n" + nl
-                st.session_state[rr_state_key] = current_val
-
-            rr_edited = st.text_area("✏️ Review & Edit — Add or modify points here",
-                value=st.session_state.get(rr_state_key, rr_corrected_text),
-                height=200, key="offer_rr_editbox",
-                help="Edit freely — add more points, fix wording. All points go into the letter.")
-            st.session_state[rr_state_key] = rr_edited
-            rr_final = [fix_responsibility_line(l) for l in rr_edited.split("\n") if l.strip()]
+            # Step 3: Editable box — HR can add/change points directly
+            st.caption("✏️ Edit points below — add more lines, change wording, delete unwanted points")
+            rr_final_text = st.text_area(
+                "Responsibilities (editable)",
+                value=rr_default_text,
+                height=220,
+                key=f"offer_rr_final_{role_offer}_{len(rr_lines)}",
+                label_visibility="collapsed")
+            rr_final = [l.strip() for l in rr_final_text.split("\n") if l.strip()]
         else:
             role_offer = role_offer_sel
             rr_fixed = []
