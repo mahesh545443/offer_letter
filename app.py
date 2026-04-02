@@ -211,9 +211,9 @@ with tab1:
         joining_date_pre = st.date_input("Joining Date", value=date.today(), key="pre_join")
         letter_date_pre  = st.date_input("Letter Date",  value=date.today(), key="pre_letter_date")
 
-        # Training & Probation Period checkboxes
+        # Training & Probation Period
         st.markdown('<div class="field-group-label">Training &amp; Probation Period</div>', unsafe_allow_html=True)
-        
+
         col_tr, col_pr = st.columns(2)
         with col_tr:
             has_training = st.checkbox("Include Training Period", key="pre_has_training")
@@ -223,21 +223,38 @@ with tab1:
         training_end = joining_date_pre
         training_dur = None
         probation_start = None
+        probation_dur = None
 
         if has_training:
-            training_dur = st.selectbox("Training Duration",
-                ["15 days", "1 month", "2 months", "3 months"], key="pre_training_dur")
-            if "day" in training_dur:
-                days_n = int(training_dur.split()[0])
-                training_end = joining_date_pre + timedelta(days=days_n)
-            else:
-                months_n = int(training_dur.split()[0])
-                training_end = joining_date_pre + relativedelta(months=months_n)
+            col_td, col_te = st.columns(2)
+            with col_td:
+                training_dur = st.selectbox("Training Duration",
+                    ["15 days", "1 month", "2 months", "3 months"], key="pre_training_dur")
+            with col_te:
+                # Auto-calculate training end date
+                if "day" in training_dur:
+                    days_n = int(training_dur.split()[0])
+                    training_end = joining_date_pre + timedelta(days=days_n)
+                else:
+                    months_n = int(training_dur.split()[0])
+                    training_end = joining_date_pre + relativedelta(months=months_n)
+                training_end = st.date_input("Training End Date", value=training_end, key="pre_training_end")
             st.markdown(f'<div class="dur-badge">Training: {joining_date_pre.strftime("%d %b %Y")} → {training_end.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
 
         if has_probation:
-            probation_start = training_end
-            st.markdown(f'<div class="dur-badge">Probation starts: {probation_start.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
+            col_pd, col_ps = st.columns(2)
+            with col_pd:
+                probation_dur = st.selectbox("Probation Duration",
+                    ["1-2 months", "2-3 months", "2-4 months", "3-4 months", "3-6 months"],
+                    index=2, key="pre_probation_dur")
+            with col_ps:
+                # Probation starts after training ends
+                probation_start = st.date_input("Probation Start Date",
+                    value=training_end, key="pre_probation_start")
+            # Calculate probation end
+            prob_months = int(probation_dur.split("-")[1].split()[0])
+            probation_end = probation_start + relativedelta(months=prob_months)
+            st.markdown(f'<div class="dur-badge">Probation: {probation_start.strftime("%d %b %Y")} → ~{probation_end.strftime("%d %b %Y")} ({probation_dur})</div>', unsafe_allow_html=True)
 
         # CTC Range
         st.markdown('<div class="field-group-label">Post-Confirmation CTC Range</div>', unsafe_allow_html=True)
@@ -326,6 +343,7 @@ with tab1:
                         ctc_range=ctc_range_display,
                         training_period=training_dur,
                         probation_start=probation_start.strftime("%d-%m-%Y") if has_probation and probation_start else None,
+                        probation_dur=probation_dur if probation_dur else "two to four months",
                         has_probation=has_probation,
                         custom_rr=pre_rr_fixed if pre_rr_fixed else None,
                     )
