@@ -249,22 +249,53 @@ with tab1:
             training_end = joining_date_pre
 
         if has_probation:
-            # Probation: Duration dropdown + Start + End date
-            probation_dur = st.selectbox("Probation Duration",
+            # Probation: Duration dropdown → auto-calculates start & end dates
+            probation_dur_sel = st.selectbox("Probation Duration",
                 ["1-2 months", "2-3 months", "2-4 months", "3-4 months", "3-6 months"],
                 index=2, key="pre_probation_dur")
-            # Auto probation end
-            prob_months = int(probation_dur.split("-")[1].split()[0])
+
+            # Parse min and max months from selection e.g. "2-4 months" → min=2, max=4
+            prob_min = int(probation_dur_sel.split("-")[0])
+            prob_max = int(probation_dur_sel.split("-")[1].split()[0])
 
             col_ps, col_pe = st.columns(2)
             with col_ps:
+                # Start date auto = training end, editable
                 probation_start = st.date_input("Probation Start Date",
                     value=training_end, key="pre_probation_start")
             with col_pe:
-                auto_prob_end = probation_start + relativedelta(months=prob_months)
+                # End date auto = start + max months, editable
+                auto_prob_end = probation_start + relativedelta(months=prob_max)
                 probation_end = st.date_input("Probation End Date",
                     value=auto_prob_end, key="pre_probation_end")
-            st.markdown(f'<div class="dur-badge">Probation: {probation_start.strftime("%d %b %Y")} → {probation_end.strftime("%d %b %Y")} ({probation_dur})</div>', unsafe_allow_html=True)
+
+            # Calculate actual duration from selected dates
+            actual_delta = relativedelta(probation_end, probation_start)
+            actual_months = actual_delta.months + actual_delta.years * 12
+
+            # Build duration text for letter based on DATES (not dropdown)
+            if actual_months <= 1:
+                probation_dur = "one month"
+            elif actual_months == 2:
+                probation_dur = "two months"
+            elif actual_months == 3:
+                probation_dur = "three months"
+            elif actual_months == 4:
+                probation_dur = "four months"
+            elif actual_months == 6:
+                probation_dur = "six months"
+            else:
+                # Use dropdown range label in words
+                dur_words = {
+                    "1-2 months": "one to two months",
+                    "2-3 months": "two to three months",
+                    "2-4 months": "two to four months",
+                    "3-4 months": "three to four months",
+                    "3-6 months": "three to six months",
+                }
+                probation_dur = dur_words.get(probation_dur_sel, f"{prob_min} to {prob_max} months")
+
+            st.markdown(f'<div class="dur-badge">Probation: {probation_start.strftime("%d %b %Y")} → {probation_end.strftime("%d %b %Y")} ({actual_months} months)</div>', unsafe_allow_html=True)
 
         # CTC Range
         st.markdown('<div class="field-group-label">Post-Confirmation CTC Range</div>', unsafe_allow_html=True)
