@@ -572,6 +572,77 @@ ROLE_DEFAULTS = {
         "Follow up with prospects and maintain the CRM database.",
         "Coordinate with internal teams for client requirements and delivery.",
     ],
+    # AI / ML roles
+    "AI Engineer": [
+        "Design and develop AI/ML models including LLM and RAG-based pipelines.",
+        "Integrate AI solutions with existing systems and APIs.",
+        "Fine-tune and evaluate large language models for domain-specific tasks.",
+        "Develop and maintain scalable machine learning workflows and infrastructure.",
+        "Research and implement state-of-the-art AI techniques and frameworks.",
+    ],
+    "Machine Learning Engineer": [
+        "Build, train, and deploy machine learning models at scale.",
+        "Design and maintain ML pipelines for data preprocessing and model evaluation.",
+        "Collaborate with data scientists to productionize research models.",
+        "Monitor model performance and retrain as required.",
+        "Implement best practices for model versioning, testing, and deployment.",
+    ],
+    "Data Scientist": [
+        "Analyze complex datasets to extract actionable business insights.",
+        "Build and evaluate predictive models using Python and machine learning frameworks.",
+        "Collaborate with business teams to define problem statements and success metrics.",
+        "Communicate findings through visualizations and detailed reports.",
+        "Maintain and improve data pipelines for ongoing analytical projects.",
+    ],
+    "Full Stack Developer": [
+        "Design and develop scalable front-end and back-end web applications.",
+        "Build RESTful APIs and integrate third-party services.",
+        "Ensure application performance, security, and responsiveness.",
+        "Collaborate with UI/UX designers to implement user interfaces.",
+        "Participate in code reviews and maintain technical documentation.",
+    ],
+    "Frontend Developer": [
+        "Develop responsive and interactive user interfaces using modern frameworks.",
+        "Optimize web application performance and load times.",
+        "Collaborate with designers to translate wireframes into functional UI.",
+        "Write clean, maintainable HTML, CSS, and JavaScript code.",
+        "Ensure cross-browser compatibility and mobile responsiveness.",
+    ],
+    "Backend Developer": [
+        "Design and implement server-side logic, APIs, and database schemas.",
+        "Ensure high availability, performance, and security of backend services.",
+        "Write unit and integration tests for all backend components.",
+        "Collaborate with frontend developers to integrate user-facing elements.",
+        "Maintain and optimize database queries and caching strategies.",
+    ],
+    "DevOps Engineer": [
+        "Design, implement, and maintain CI/CD pipelines for automated deployments.",
+        "Manage cloud infrastructure on AWS, GCP, or Azure.",
+        "Monitor system health, performance, and security across environments.",
+        "Automate infrastructure provisioning using tools like Terraform or Ansible.",
+        "Collaborate with development teams to improve deployment processes.",
+    ],
+    "Cloud Engineer": [
+        "Design and implement scalable cloud architectures and solutions.",
+        "Manage and optimize cloud resources for cost and performance.",
+        "Implement security best practices and compliance across cloud environments.",
+        "Support migration of on-premises systems to cloud platforms.",
+        "Monitor and troubleshoot cloud infrastructure and services.",
+    ],
+    "Product Manager": [
+        "Define product vision, roadmap, and feature priorities based on business goals.",
+        "Gather and analyze user feedback to inform product decisions.",
+        "Collaborate with engineering, design, and marketing teams on product delivery.",
+        "Write detailed product requirement documents and user stories.",
+        "Track product metrics and define success criteria for each release.",
+    ],
+    "UI/UX Designer": [
+        "Design intuitive user interfaces and seamless user experiences.",
+        "Create wireframes, mockups, and prototypes for web and mobile applications.",
+        "Conduct user research and usability testing to validate design decisions.",
+        "Collaborate with developers to ensure pixel-perfect implementation.",
+        "Maintain and evolve the design system and component library.",
+    ],
 }
 
 GENERIC_DEFAULTS = [
@@ -599,11 +670,12 @@ def fix_responsibility_line(line: str) -> str:
     line = re.sub(r'^[\•\-\*\d\.]+\s*', '', line).strip()
     # Fix spelling
     line = fix_spelling(line)
-    # Sentence case
+    # Fix comma/period spacing
+    line = re.sub(r'\s*,\s*', ', ', line)
+    line = re.sub(r'\s*\.\s*', '. ', line).strip()
+    # Sentence case — capitalize first letter
     if line:
         line = line[0].upper() + line[1:]
-    # Fix comma spacing
-    line = re.sub(r'\s*,\s*', ', ', line)
     # Add period if missing
     if line and line[-1] not in '.!?,;':
         line += '.'
@@ -622,10 +694,41 @@ def complete_responsibilities(lines: list, role: str, min_points: int = 5) -> li
 
     # Get defaults for role
     role_key = None
+    role_lower = role.lower().strip()
+
+    # Exact match first
     for key in ROLE_DEFAULTS:
-        if key.lower() in role.lower() or role.lower() in key.lower():
+        if key.lower() == role_lower:
             role_key = key
             break
+
+    # Partial match if no exact match
+    if not role_key:
+        for key in ROLE_DEFAULTS:
+            key_words = key.lower().split()
+            if any(w in role_lower for w in key_words if len(w) > 3):
+                role_key = key
+                break
+
+    # Keyword-based match for custom roles
+    if not role_key:
+        keyword_map = {
+            'ai': 'AI Engineer', 'llm': 'AI Engineer', 'ml': 'Machine Learning Engineer',
+            'machine learning': 'Machine Learning Engineer',
+            'data scien': 'Data Scientist', 'scientist': 'Data Scientist',
+            'full stack': 'Full Stack Developer', 'fullstack': 'Full Stack Developer',
+            'frontend': 'Frontend Developer', 'front end': 'Frontend Developer',
+            'backend': 'Backend Developer', 'back end': 'Backend Developer',
+            'devops': 'DevOps Engineer', 'cloud': 'Cloud Engineer',
+            'product': 'Product Manager', 'ui': 'UI/UX Designer', 'ux': 'UI/UX Designer',
+            'data analyst': 'Data Analyst', 'business analyst': 'Business Analyst',
+            'software': 'Software Developer', 'developer': 'Software Developer',
+            'hr': 'HR Executive', 'human resource': 'HR Executive',
+        }
+        for kw, mapped_role in keyword_map.items():
+            if kw in role_lower:
+                role_key = mapped_role
+                break
 
     defaults = ROLE_DEFAULTS.get(role_key, GENERIC_DEFAULTS) if role_key else GENERIC_DEFAULTS
 
