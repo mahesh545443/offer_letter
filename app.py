@@ -373,23 +373,26 @@ with tab1:
 
     with col2:
         st.markdown('<div class="field-group-label">Preview &amp; Generate</div>', unsafe_allow_html=True)
-        training_line   = f"<b>Training:</b> {training_dur}<br>" if has_training else ""
+        if has_training and training_dur_text:
+            training_line = f"<b>Training:</b> {training_start_disp.strftime('%d %b %Y')} → {training_end.strftime('%d %b %Y')} ({training_dur_text})<br>"
+        else:
+            training_line = ""
         probation_line  = f"<b>Probation Starts:</b> {probation_start.strftime('%d %b %Y')}<br>" if has_probation and probation_start else ""
         incentive_line  = f"<b>Incentive:</b> Up to {incentive_pre} / month<br>" if incentive_pre else "<b>Incentive:</b> Not applicable<br>"
-        st.markdown(f"""
-        <div class="aa-card">
-            <div style="font-size:13px;color:#4a5568;line-height:2;">
-                <b>Candidate:</b> {pre_name_typed.strip() or "—"}<br>
-                <b>Role:</b> {role_pre or "—"}<br>
-                <b>Joining:</b> {joining_date_pre.strftime("%d %b %Y")}<br>
-                {training_line}
-                {probation_line}
-                <b>Stipend:</b> {stipend_pre or "—"} / month<br>
-                {incentive_line}
-                <b>CTC Range:</b> {ctc_range_display}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        preview_html = (
+            f'<div class="aa-card">'
+            f'<div style="font-size:13px;color:#4a5568;line-height:2;">'
+            f'<b>Candidate:</b> {pre_name_typed.strip() or "—"}<br>'
+            f'<b>Role:</b> {role_pre or "—"}<br>'
+            f'<b>Joining:</b> {joining_date_pre.strftime("%d %b %Y")}<br>'
+            f'{training_line}'
+            f'{probation_line}'
+            f'<b>Stipend:</b> {stipend_pre or "—"} / month<br>'
+            f'{incentive_line}'
+            f'<b>CTC Range:</b> {ctc_range_display}'
+            f'</div></div>'
+        )
+        st.markdown(preview_html, unsafe_allow_html=True)
 
         generate_pre = st.button("Generate Pre-Offer Letter", key="gen_pre", use_container_width=True)
 
