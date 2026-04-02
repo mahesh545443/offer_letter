@@ -201,9 +201,12 @@ with tab1:
                 key="pre_rr_other")
             pre_rr_lines = [l.strip() for l in pre_rr_raw.split("\n") if l.strip()]
             pre_rr_fixed = complete_responsibilities(pre_rr_lines, role_pre or "General", min_points=5)
-            if pre_rr_lines:
-                st.markdown('<div class="preview-rr"><b>Preview (auto-corrected):</b><br>' +
-                    '<br>'.join(f'• {l}' for l in pre_rr_fixed) + '</div>', unsafe_allow_html=True)
+            pre_rr_corrected = "\n".join(pre_rr_fixed)
+            pre_rr_edited = st.text_area("✏️ Review & Edit (auto-corrected)",
+                value=pre_rr_corrected, height=160,
+                key="pre_rr_edited",
+                help="You can edit these points directly.")
+            pre_rr_final = [fix_responsibility_line(l) for l in pre_rr_edited.split("\n") if l.strip()]
         else:
             role_pre = role_pre_sel
             pre_rr_fixed = []
@@ -419,7 +422,7 @@ with tab1:
                         probation_start=probation_start.strftime("%d-%m-%Y") if has_probation and probation_start else None,
                         probation_dur=probation_dur if probation_dur else "two to four months",
                         has_probation=has_probation,
-                        custom_rr=pre_rr_fixed if pre_rr_fixed else None,
+                        custom_rr=pre_rr_final if pre_rr_final else None,
                     )
                 if result["success"]:
                     if candidate_name not in get_candidate_names():
@@ -473,15 +476,19 @@ with tab2:
                 st.markdown(f'<div class="fix-badge">✏️ Auto-corrected: <b>{role_offer}</b></div>', unsafe_allow_html=True)
 
             st.markdown('<div class="field-group-label">Roles &amp; Responsibilities</div>', unsafe_allow_html=True)
-            st.caption("Enter each point on a new line — auto-fixed & minimum 5 points added")
-            rr_raw = st.text_area("Responsibilities", height=140,
-                placeholder="e.g.\ndesign and devlop web applications\nmanage databse and apis",
+            st.caption("Enter each point on a new line — spelling & grammar auto-fixed, minimum 5 points auto-added")
+            rr_raw = st.text_area("Responsibilities", height=130,
+                placeholder="e.g.\ndesign and develop web applications\nmanage database and APIs",
                 key="offer_rr_other")
             rr_lines = [l.strip() for l in rr_raw.split("\n") if l.strip()]
             rr_fixed = complete_responsibilities(rr_lines, role_offer or "General", min_points=5)
-            if rr_lines:
-                st.markdown('<div class="preview-rr"><b>Preview (auto-corrected):</b><br>' +
-                    '<br>'.join(f'• {l}' for l in rr_fixed) + '</div>', unsafe_allow_html=True)
+            # Show editable corrected version
+            rr_corrected_text = "\n".join(rr_fixed)
+            rr_edited = st.text_area("✏️ Review & Edit (auto-corrected)",
+                value=rr_corrected_text, height=160,
+                key="offer_rr_edited",
+                help="You can edit these points directly. Changes will be used in the letter.")
+            rr_final = [fix_responsibility_line(l) for l in rr_edited.split("\n") if l.strip()]
         else:
             role_offer = role_offer_sel
             rr_fixed = []
@@ -559,7 +566,7 @@ with tab2:
                         pf_percent=p.get("pf_percent", 5.0),
                         variable_percent=p.get("variable_percent", 10),
                         letter_date=letter_date_offer.strftime("%d-%m-%Y"),
-                        custom_rr=rr_fixed if rr_fixed else None,
+                        custom_rr=rr_final if rr_final else None,
                         salary_data=st.session_state.salary_result,
                     )
                 if result["success"]:
@@ -669,8 +676,19 @@ with tab3:
             auto_resp    = get_responsibilities_for_role(role_intern)
             default_resp = "\n".join(auto_resp)
 
-        responsibilities_text = st.text_area("Responsibilities", value=default_resp,
-            height=140, key=f"intern_resp_{role_intern}", label_visibility="collapsed")
+        responsibilities_text = st.text_area("Type Responsibilities",
+            value=default_resp, height=120,
+            key=f"intern_resp_{role_intern}")
+
+        # Auto-correct and show editable preview
+        raw_intern_lines = [l.strip() for l in responsibilities_text.split("\n") if l.strip()]
+        if raw_intern_lines:
+            intern_fixed = complete_responsibilities(raw_intern_lines, role_intern, min_points=5)
+            intern_corrected = "\n".join(intern_fixed)
+            responsibilities_text = st.text_area("✏️ Review & Edit (auto-corrected)",
+                value=intern_corrected, height=150,
+                key=f"intern_resp_edited_{role_intern}",
+                help="Edit any point directly here before generating.")
 
         st.markdown("")
         generate_intern = st.button("Generate Internship Certificate", key="gen_intern", use_container_width=True)
@@ -684,6 +702,7 @@ with tab3:
             else:
                 raw_lines = [l.strip() for l in responsibilities_text.split("\n") if l.strip()]
                 responsibilities = complete_responsibilities(raw_lines, role_intern, min_points=5)
+                responsibilities = [fix_responsibility_line(l) for l in responsibilities if l.strip()]
                 with st.spinner("Generating certificate..."):
                     result = generate_internship(
                         intern_name=intern_name,
