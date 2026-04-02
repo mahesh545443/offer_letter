@@ -211,24 +211,33 @@ with tab1:
         joining_date_pre = st.date_input("Joining Date", value=date.today(), key="pre_join")
         letter_date_pre  = st.date_input("Letter Date",  value=date.today(), key="pre_letter_date")
 
-        # Training period checkbox
+        # Training & Probation Period checkboxes
         st.markdown('<div class="field-group-label">Training &amp; Probation Period</div>', unsafe_allow_html=True)
-        has_training = st.checkbox("Include Training Period before Probation", key="pre_has_training")
+        
+        col_tr, col_pr = st.columns(2)
+        with col_tr:
+            has_training = st.checkbox("Include Training Period", key="pre_has_training")
+        with col_pr:
+            has_probation = st.checkbox("Include Probation Period", value=True, key="pre_has_probation")
+
+        training_end = joining_date_pre
+        training_dur = None
+        probation_start = None
+
         if has_training:
             training_dur = st.selectbox("Training Duration",
                 ["15 days", "1 month", "2 months", "3 months"], key="pre_training_dur")
-            # Calculate training end date
             if "day" in training_dur:
-                days = int(training_dur.split()[0])
-                training_end = joining_date_pre + timedelta(days=days)
+                days_n = int(training_dur.split()[0])
+                training_end = joining_date_pre + timedelta(days=days_n)
             else:
-                months = int(training_dur.split()[0])
-                training_end = joining_date_pre + relativedelta(months=months)
+                months_n = int(training_dur.split()[0])
+                training_end = joining_date_pre + relativedelta(months=months_n)
+            st.markdown(f'<div class="dur-badge">Training: {joining_date_pre.strftime("%d %b %Y")} → {training_end.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
+
+        if has_probation:
             probation_start = training_end
-            st.markdown(f'<div class="dur-badge">Training: {joining_date_pre.strftime("%d %b %Y")} → {training_end.strftime("%d %b %Y")} &nbsp;|&nbsp; Probation starts: {probation_start.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
-        else:
-            training_dur = None
-            probation_start = joining_date_pre
+            st.markdown(f'<div class="dur-badge">Probation starts: {probation_start.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
 
         # CTC Range
         st.markdown('<div class="field-group-label">Post-Confirmation CTC Range</div>', unsafe_allow_html=True)
@@ -276,8 +285,9 @@ with tab1:
 
     with col2:
         st.markdown('<div class="field-group-label">Preview &amp; Generate</div>', unsafe_allow_html=True)
-        training_line = f"<b>Training Period:</b> {training_dur} (from {joining_date_pre.strftime('%d %b %Y')})<br>" if has_training else ""
-        incentive_line = f"<b>Incentive:</b> Up to {incentive_pre} / month<br>" if incentive_pre else "<b>Incentive:</b> Not applicable<br>"
+        training_line   = f"<b>Training:</b> {training_dur}<br>" if has_training else ""
+        probation_line  = f"<b>Probation Starts:</b> {probation_start.strftime('%d %b %Y')}<br>" if has_probation and probation_start else ""
+        incentive_line  = f"<b>Incentive:</b> Up to {incentive_pre} / month<br>" if incentive_pre else "<b>Incentive:</b> Not applicable<br>"
         st.markdown(f"""
         <div class="aa-card">
             <div style="font-size:13px;color:#4a5568;line-height:2;">
@@ -285,7 +295,7 @@ with tab1:
                 <b>Role:</b> {role_pre or "—"}<br>
                 <b>Joining:</b> {joining_date_pre.strftime("%d %b %Y")}<br>
                 {training_line}
-                <b>Probation Starts:</b> {probation_start.strftime("%d %b %Y")}<br>
+                {probation_line}
                 <b>Stipend:</b> {stipend_pre or "—"} / month<br>
                 {incentive_line}
                 <b>CTC Range:</b> {ctc_range_display}
@@ -312,10 +322,11 @@ with tab1:
                         joining_date=joining_date_pre.strftime("%d-%m-%Y"),
                         letter_date=letter_date_pre.strftime("%d-%m-%Y"),
                         stipend=stipend_pre,
-                        incentive=incentive_pre,  # empty string = no incentive
+                        incentive=incentive_pre,
                         ctc_range=ctc_range_display,
                         training_period=training_dur,
-                        probation_start=probation_start.strftime("%d-%m-%Y") if has_training else None,
+                        probation_start=probation_start.strftime("%d-%m-%Y") if has_probation and probation_start else None,
+                        has_probation=has_probation,
                         custom_rr=pre_rr_fixed if pre_rr_fixed else None,
                     )
                 if result["success"]:
