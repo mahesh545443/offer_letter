@@ -195,17 +195,19 @@ with tab1:
 
             # R&R for Other role in pre-offer
             st.markdown('<div class="field-group-label">Roles &amp; Responsibilities</div>', unsafe_allow_html=True)
-            st.caption("Enter each point on a new line — spelling & grammar auto-fixed, minimum 5 points auto-added")
-            pre_rr_raw = st.text_area("Responsibilities", height=130,
-                placeholder="e.g.\ndesign and develop scalable applications\nmanage client requirements",
+            st.caption("Type keywords or points — role-based points auto-generated below for editing")
+            pre_rr_raw = st.text_area("Type Responsibilities (optional)",
+                height=100,
+                placeholder="e.g.\nbuild llm pipeline\nclient meetings\ndocker deployment",
                 key="pre_rr_other")
             pre_rr_lines = [l.strip() for l in pre_rr_raw.split("\n") if l.strip()]
+            # Always generate min 5 points based on role
             pre_rr_fixed = complete_responsibilities(pre_rr_lines, role_pre or "General", min_points=5)
             pre_rr_corrected = "\n".join(pre_rr_fixed)
-            pre_rr_edited = st.text_area("✏️ Review & Edit (auto-corrected)",
-                value=pre_rr_corrected, height=160,
-                key="pre_rr_edited",
-                help="You can edit these points directly.")
+            pre_rr_edited = st.text_area("✏️ Review & Edit — Add or modify points here",
+                value=pre_rr_corrected, height=200,
+                key=f"pre_rr_edited_{role_pre}",
+                help="All points here will go into the letter. Add more if needed.")
             pre_rr_final = [fix_responsibility_line(l) for l in pre_rr_edited.split("\n") if l.strip()]
         else:
             role_pre = role_pre_sel
@@ -477,17 +479,19 @@ with tab2:
 
             st.markdown('<div class="field-group-label">Roles &amp; Responsibilities</div>', unsafe_allow_html=True)
             st.caption("Enter each point on a new line — spelling & grammar auto-fixed, minimum 5 points auto-added")
-            rr_raw = st.text_area("Responsibilities", height=130,
-                placeholder="e.g.\ndesign and develop web applications\nmanage database and APIs",
+            rr_raw = st.text_area("Type Responsibilities (optional — role-based points auto-added)",
+                height=100,
+                placeholder="e.g.\nbuild llm pipeline\ndeploy docker to aws\nclient meetings",
                 key="offer_rr_other")
             rr_lines = [l.strip() for l in rr_raw.split("\n") if l.strip()]
+            # Always generate min 5 points based on role
             rr_fixed = complete_responsibilities(rr_lines, role_offer or "General", min_points=5)
-            # Show editable corrected version
             rr_corrected_text = "\n".join(rr_fixed)
-            rr_edited = st.text_area("✏️ Review & Edit (auto-corrected)",
-                value=rr_corrected_text, height=160,
-                key="offer_rr_edited",
-                help="You can edit these points directly. Changes will be used in the letter.")
+            # Editable box — HR can add/edit points here
+            rr_edited = st.text_area("✏️ Review & Edit — Add or modify points here",
+                value=rr_corrected_text, height=200,
+                key=f"offer_rr_edited_{role_offer}",
+                help="All points here will go into the letter. Add more if needed.")
             rr_final = [fix_responsibility_line(l) for l in rr_edited.split("\n") if l.strip()]
         else:
             role_offer = role_offer_sel
