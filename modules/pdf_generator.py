@@ -336,26 +336,38 @@ def _pre_offer_pdf(ctx, pdf_path):
     if training_dur and has_probation and prob_start:
         # Both training and probation
         st.append(Paragraph(
-            f'The candidate will undergo a <b>Training Period of {training_dur}</b> commencing from <b>{doj}</b>, '
-            f'followed by a <b>Probationary Period of {prob_dur}</b> starting from <b>{prob_start}</b>.', s["B"]))
+            f'The candidate will undergo a <b>Training Period of {training_dur}</b>, commencing from <b>{doj}</b>, '
+            f'followed by a <b>Probationary Period of {prob_dur}</b>, starting from <b>{prob_start}</b>.', s["B"]))
     elif training_dur and not has_probation:
         # Only training, no probation
         st.append(Paragraph(
-            f'The candidate will undergo a <b>Training Period of {training_dur}</b> commencing from <b>{doj}</b>.', s["B"]))
+            f'The candidate will undergo a <b>Training Period of {training_dur}</b> with <b>Analytics Avenue LLP</b>, '
+            f'commencing from <b>{doj}</b>.', s["B"]))
     elif has_probation:
         # Only probation, no training
         st.append(Paragraph(
-            f'The actual engagement shall commence with a <b>Probationary Period of {prob_dur}</b>, '
-            f'effective from <b>{doj}</b>, the date of joining.', s["B"]))
+            f'The engagement shall commence with a <b>Probationary Period of {prob_dur}</b>, '
+            f'effective from <b>{doj}</b>.', s["B"]))
     else:
-        # Neither training nor probation
+        # Neither — just joining date
         st.append(Paragraph(
-            f'The actual engagement with <b>Analytics Avenue LLP</b> shall commence from <b>{doj}</b>.', s["B"]))
+            f'The engagement with <b>Analytics Avenue LLP</b> shall commence from <b>{doj}</b>.', s["B"]))
     st.append(Spacer(1, 3*mm))
-    st.append(Paragraph("<b>Compensation During Probation</b>", s["SH"]))
-    st.append(Paragraph(
-        "During the probation period, the candidate will be entitled to the "
-        "following compensation:", s["B"]))
+    # Heading and intro line change based on scenario
+    if has_probation:
+        st.append(Paragraph("<b>Compensation During Probation</b>", s["SH"]))
+        st.append(Paragraph(
+            "During the probation period, the candidate will be entitled to the "
+            "following compensation:", s["B"]))
+    elif training_dur:
+        st.append(Paragraph("<b>Compensation During Training</b>", s["SH"]))
+        st.append(Paragraph(
+            "During the training period, the candidate will be entitled to the "
+            "following compensation:", s["B"]))
+    else:
+        st.append(Paragraph("<b>Compensation</b>", s["SH"]))
+        st.append(Paragraph(
+            "The candidate will be entitled to the following compensation:", s["B"]))
     st.append(_bul(f"<b>Fixed Stipend / Base Pay: {stipend} per month</b>", s))
     if incentive:
         st.append(_bul(
@@ -368,11 +380,25 @@ def _pre_offer_pdf(ctx, pdf_path):
 
     st.append(Spacer(1, 3*mm))
     st.append(Paragraph("<b>Confirmation, Promotion &amp; Post-Confirmation Compensation</b>", s["SH"]))
-    st.append(Paragraph(
-        f'Upon <b>successful completion of the probation period</b> and meeting the prescribed '
-        f'performance expectations, {p["sub"]} will be considered for role confirmation '
-        f'with an annual compensation structure (CTC) within the range of '
-        f'<b>{ctc_range}</b>, comprising:', s["B"]))
+    if has_probation:
+        confirm_line = (
+            f'Upon <b>successful completion of the probation period</b> and meeting the prescribed '
+            f'performance expectations, {p["sub"]} will be considered for role confirmation '
+            f'with an annual compensation structure (CTC) within the range of <b>{ctc_range}</b>, comprising:'
+        )
+    elif training_dur:
+        confirm_line = (
+            f'Upon <b>successful completion of the training period</b> and meeting the prescribed '
+            f'performance expectations, {p["sub"]} will be considered for a confirmed role '
+            f'with an annual compensation structure (CTC) within the range of <b>{ctc_range}</b>, comprising:'
+        )
+    else:
+        confirm_line = (
+            f'Upon meeting the prescribed performance expectations, {p["sub"]} will be considered '
+            f'for role confirmation with an annual compensation structure (CTC) within the range of '
+            f'<b>{ctc_range}</b>, comprising:'
+        )
+    st.append(Paragraph(confirm_line, s["B"]))
     st.append(_bul("Base Pay", s))
     st.append(_bul("Variable / Performance-Based Pay", s))
     st.append(_bul(
@@ -381,14 +407,50 @@ def _pre_offer_pdf(ctx, pdf_path):
     # PAGE 2 — compact to fit all content
     from reportlab.lib.styles import ParagraphStyle as PS2
     from reportlab.lib.enums import TA_JUSTIFY as TAJ2
-    P2  = PS2(name="P2B",  fontName=FR, fontSize=9.8, leading=13.5, textColor=BLACK, alignment=TAJ2, spaceAfter=4)
-    P2S = PS2(name="P2S",  fontName=FR, fontSize=9.8, leading=13,   textColor=BLACK, leftIndent=24, spaceAfter=1)
+    P2  = PS2(name="P2B",  fontName=FR, fontSize=10.5, leading=15, textColor=BLACK, alignment=TAJ2, spaceAfter=5)
+    P2S = PS2(name="P2S",  fontName=FR, fontSize=10.5, leading=14, textColor=BLACK, leftIndent=24, spaceAfter=2)
     from reportlab.platypus import Paragraph as _Pa
     def _s2(l, t): return _Pa(f"{l}. {t}", P2S)
 
     st.append(PageBreak())
     st += _hdr("Points to Be Noted")
-    st.append(Paragraph("<b>1. Promotion &amp; Salary Revision:</b> Employees who meet performance expectations and achieve assigned targets in business development and technical proof-of-concepts (POCs) will be eligible for promotion and a suitable salary hike, as per management discretion. The official salary revision happens during September–October and April–May. Upon successful completion of the Data Analytics Trainee role the employee will be promoted to the role of <b>Business Analyst.</b>", P2))
+    # Point 1 — Promotion text changes based on scenario
+    if has_probation and training_dur:
+        # Both: upon completion of training AND probation → promoted to given role
+        promo_text = (
+            f"<b>1. Promotion &amp; Salary Revision:</b> Employees who meet performance expectations "
+            f"and achieve assigned targets will be eligible for promotion and a suitable salary hike, "
+            f"as per management discretion. The official salary revision happens during "
+            f"September–October and April–May. Upon successful completion of the training and "
+            f"probation period, the employee will be confirmed in the role of <b>{rol}.</b>"
+        )
+    elif training_dur and not has_probation:
+        # Only training → upon completion of training → confirmed role
+        promo_text = (
+            f"<b>1. Promotion &amp; Salary Revision:</b> Employees who meet performance expectations "
+            f"and achieve assigned targets will be eligible for promotion and a suitable salary hike, "
+            f"as per management discretion. The official salary revision happens during "
+            f"September–October and April–May. Upon successful completion of the training period, "
+            f"the employee will be confirmed in the role of <b>{rol}.</b>"
+        )
+    elif has_probation and not training_dur:
+        # Only probation → upon completion of probation → confirmed role
+        promo_text = (
+            f"<b>1. Promotion &amp; Salary Revision:</b> Employees who meet performance expectations "
+            f"and achieve assigned targets will be eligible for promotion and a suitable salary hike, "
+            f"as per management discretion. The official salary revision happens during "
+            f"September–October and April–May. Upon successful completion of the probation period, "
+            f"the employee will be confirmed in the role of <b>{rol}.</b>"
+        )
+    else:
+        # No training no probation → no promotion line
+        promo_text = (
+            f"<b>1. Salary Revision:</b> Employees who meet performance expectations "
+            f"and achieve assigned targets will be eligible for a suitable salary hike, "
+            f"as per management discretion. The official salary revision happens during "
+            f"September–October and April–May."
+        )
+    st.append(Paragraph(promo_text, P2))
     st.append(Paragraph("<b>2. Training-Cum-Service Bond:</b> As per the terms of employment, the employee is required to execute a Training-cum-Service Bond committing to serve the company for 12 (twelve) months from the date of joining. If the employee voluntarily resigns or abandons employment before completing this period, they agree to reimburse a proportionate training cost of up to <b>₹1,00,000</b> (Rupees One Lakh only).", P2))
     st.append(Paragraph("<b>3. Roles &amp; Responsibilities:</b> During the tenure, the employee is expected to actively participate in:", P2))
     st.append(_s2("a", "End-to-end business development activities"))
