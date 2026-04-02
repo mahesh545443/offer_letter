@@ -456,7 +456,27 @@ import re
 
 # ── Common spelling corrections for HR responsibilities ───────
 SPELL_FIXES = {
-    # Tech terms
+    # Tech acronyms — always uppercase
+    r'\bllm\b': 'LLM', r'\bllms\b': 'LLMs',
+    r'\brag\b': 'RAG',
+    r'\bnlp\b': 'NLP',
+    r'\bcv\b': 'CV',
+    r'\bocr\b': 'OCR',
+    r'\bgpu\b': 'GPU',
+    r'\bcpu\b': 'CPU',
+    r'\baws\b': 'AWS',
+    r'\bgcp\b': 'GCP',
+    r'\bazure\b': 'Azure',
+    r'\bdocker\b': 'Docker',
+    r'\bkubernetes\b': 'Kubernetes',
+    r'\bk8s\b': 'Kubernetes',
+    r'\bgit\b': 'Git',
+    r'\bgithub\b': 'GitHub',
+    r'\bcicd\b': 'CI/CD',
+    r'\brestful\b': 'RESTful',
+    r'\bjson\b': 'JSON',
+    r'\bxml\b': 'XML',
+    r'\bapi\b': 'API',
     r'\blms\b': 'LMS', r'\bcrm\b': 'CRM', r'\berp\b': 'ERP',
     r'\bapi\b': 'API', r'\bapis\b': 'APIs', r'\bui\b': 'UI', r'\bux\b': 'UX',
     r'\bsql\b': 'SQL', r'\bhtml\b': 'HTML', r'\bcss\b': 'CSS',
