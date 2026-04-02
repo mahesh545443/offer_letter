@@ -320,6 +320,7 @@ def _pre_offer_pdf(ctx, pdf_path):
     ctc_range    = ctx.get("ctc_range", "\u20b94 LPA to \u20b96 LPA")
     training_dur  = ctx.get("training_period", None)
     prob_start    = ctx.get("probation_start", None)
+    prob_dur      = ctx.get("probation_dur", "two to four months")
     has_probation = ctx.get("has_probation", True)
     p             = _pronoun(sal)
 
@@ -336,7 +337,7 @@ def _pre_offer_pdf(ctx, pdf_path):
         # Both training and probation
         st.append(Paragraph(
             f'The candidate will undergo a <b>Training Period of {training_dur}</b> commencing from <b>{doj}</b>, '
-            f'followed by a <b>Probationary Period of two to four months</b> starting from <b>{prob_start}</b>.', s["B"]))
+            f'followed by a <b>Probationary Period of {prob_dur}</b> starting from <b>{prob_start}</b>.', s["B"]))
     elif training_dur and not has_probation:
         # Only training, no probation
         st.append(Paragraph(
@@ -344,8 +345,8 @@ def _pre_offer_pdf(ctx, pdf_path):
     elif has_probation:
         # Only probation, no training
         st.append(Paragraph(
-            f'The actual engagement shall commence with a <b>probationary period ranging from '
-            f'two to four months</b>, effective from <b>{doj}</b>, the date of joining.', s["B"]))
+            f'The actual engagement shall commence with a <b>Probationary Period of {prob_dur}</b>, '
+            f'effective from <b>{doj}</b>, the date of joining.', s["B"]))
     else:
         # Neither training nor probation
         st.append(Paragraph(
@@ -377,12 +378,6 @@ def _pre_offer_pdf(ctx, pdf_path):
     st.append(_bul(
         "Applicable Statutory Benefits, including gratuity, as per prevailing laws "
         "and company policy", s))
-    # Add some key points on page 1 to fill space
-    st.append(Paragraph("<b>Key Terms</b>", s["SH"]))
-    st.append(_bul("<b>Training-Cum-Service Bond:</b> The employee is required to serve the company for <b>12 months</b> from the date of joining. Early exit may attract training cost recovery of up to <b>₹1,00,000</b>.", s))
-    st.append(_bul("<b>Notice Period:</b> The official notice period is <b>90 days</b>. Failure to serve the full notice period may result in termination records.", s))
-    st.append(_bul("<b>Performance Management:</b> Repeated escalations (more than 5) may lead to proportionate salary deductions of <b>₹1,000</b> per instance.", s))
-
     # PAGE 2 — compact to fit all content
     from reportlab.lib.styles import ParagraphStyle as PS2
     from reportlab.lib.enums import TA_JUSTIFY as TAJ2
