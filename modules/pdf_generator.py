@@ -322,6 +322,7 @@ def _pre_offer_pdf(ctx, pdf_path):
     prob_start    = ctx.get("probation_start", None)
     prob_dur      = ctx.get("probation_dur", "two to four months")
     has_probation = ctx.get("has_probation", True)
+    custom_rr     = ctx.get("custom_rr", [])
     p             = _pronoun(sal)
 
     doc = _doc(pdf_path)
@@ -453,11 +454,19 @@ def _pre_offer_pdf(ctx, pdf_path):
     st.append(Paragraph(promo_text, P2))
     st.append(Paragraph("<b>2. Training-Cum-Service Bond:</b> As per the terms of employment, the employee is required to execute a Training-cum-Service Bond committing to serve the company for 12 (twelve) months from the date of joining. If the employee voluntarily resigns or abandons employment before completing this period, they agree to reimburse a proportionate training cost of up to <b>₹1,00,000</b> (Rupees One Lakh only).", P2))
     st.append(Paragraph("<b>3. Roles &amp; Responsibilities:</b> During the tenure, the employee is expected to actively participate in:", P2))
-    st.append(_s2("a", "End-to-end business development activities"))
-    st.append(_s2("b", "Client engagement and lead generation"))
-    st.append(_s2("c", "Follow-ups and achievement of assigned targets"))
-    st.append(_s2("d", "Preparation of reports and dashboards"))
-    st.append(_s2("e", "Completion of mandatory technical and professional training programs"))
+    # Use custom R&R if provided, else use defaults
+    default_rr = [
+        "End-to-end business development activities",
+        "Client engagement and lead generation",
+        "Follow-ups and achievement of assigned targets",
+        "Preparation of reports and dashboards",
+        "Completion of mandatory technical and professional training programs",
+    ]
+    rr_to_use = custom_rr if custom_rr else default_rr
+    alpha = "abcdefghijklmnopqrstuvwxyz"
+    for i, item in enumerate(rr_to_use):
+        label = alpha[i] if i < len(alpha) else str(i+1)
+        st.append(_s2(label, item.rstrip('.')))
     st.append(Paragraph("<b>4. Performance Management:</b> Repeated performance escalations (more than five (5)) may lead to proportionate salary deductions of <b>₹1,000</b> per instance.", P2))
     st.append(Paragraph("<b>5. Working Hours &amp; Shifts:</b> The employee should be willing to work in any shifts and on weekends, if required, based on business needs.", P2))
     st.append(Paragraph("<b>Notice Period:</b> The company’s official notice period is 90 days. Failure to serve the full notice period may result in the employee being marked as terminated in company.", P2))
