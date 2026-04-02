@@ -23,6 +23,7 @@ def generate_pre_offer(
     ctc_range: str = "\u20b94 LPA to \u20b96 LPA",
     training_period: str = None,
     probation_start: str = None,
+    probation_dur: str = "two to four months",
     has_probation: bool = True,
     custom_rr: list = None,
 ) -> dict:
@@ -42,6 +43,7 @@ def generate_pre_offer(
         "ctc_range":       ctc_range,
         "training_period": training_period,
         "probation_start": probation_start,
+        "probation_dur":   probation_dur,
         "has_probation":   has_probation,
         "custom_rr":       custom_rr or [],
     }
