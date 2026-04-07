@@ -187,6 +187,7 @@ with tab1:
         with col_b:
             role_pre_sel = st.selectbox("Role / Designation", PRESET_ROLES, key="pre_role_sel")
 
+        pre_rr_final = []  # default empty — only set if role is Other
         if role_pre_sel == "Other":
             role_pre_raw = st.text_input("Type Role Name", placeholder="e.g. Data Science Analyst", key="pre_role_other")
             role_pre = fix_role_name(role_pre_raw) if role_pre_raw.strip() else ""
