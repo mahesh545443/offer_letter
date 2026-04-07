@@ -22,6 +22,17 @@ from modules.db_service import (
     add_candidate, add_intern, load_history,
     get_responsibilities_for_role
 )
+
+def clear_history():
+    """Clear all document history."""
+    import json, os
+    history_file = os.path.join(os.path.dirname(__file__), "database", "history.json")
+    try:
+        with open(history_file, "w") as f:
+            json.dump([], f)
+        return True
+    except Exception:
+        return False
 from modules.ai_service import parse_prompt, parse_salary_prompt_groq
 from modules.salary_calc import calculate_salary_breakup, format_inr
 from modules.pre_offer import generate_pre_offer
@@ -768,6 +779,14 @@ with tab3:
 # ══════════════════════════════════════════════
 with tab4:
     st.markdown('<div class="aa-page-title">Document History</div>', unsafe_allow_html=True)
+
+    col_h1, col_h2 = st.columns([3, 1])
+    with col_h2:
+        if st.button("🗑️ Clear All History", key="clear_history_btn", use_container_width=True):
+            if clear_history():
+                st.success("History cleared!")
+                st.rerun()
+
     history = load_history()
     if not history:
         st.markdown('<div class="aa-info">No documents generated yet.</div>', unsafe_allow_html=True)
