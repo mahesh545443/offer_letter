@@ -24,14 +24,15 @@ from modules.db_service import (
 )
 
 def clear_history():
-    """Clear all document history."""
+    """Clear all document history — uses same path as db_service.HISTORY_PATH."""
     import json, os
-    history_file = os.path.join(os.path.dirname(__file__), "database", "history.json")
+    from modules.db_service import HISTORY_PATH
     try:
-        with open(history_file, "w") as f:
+        with open(HISTORY_PATH, "w") as f:
             json.dump([], f)
         return True
-    except Exception:
+    except Exception as e:
+        st.error(f"Could not clear history: {e}")
         return False
 from modules.ai_service import parse_prompt, parse_salary_prompt_groq
 from modules.salary_calc import calculate_salary_breakup, format_inr
@@ -783,8 +784,20 @@ with tab4:
     col_h1, col_h2 = st.columns([3, 1])
     with col_h2:
         if st.button("🗑️ Clear All History", key="clear_history_btn", use_container_width=True):
-            if clear_history():
-                st.success("History cleared!")
+            st.session_state["confirm_clear"] = True
+
+    if st.session_state.get("confirm_clear"):
+        st.warning("Are you sure you want to clear all history?")
+        col_yes, col_no = st.columns(2)
+        with col_yes:
+            if st.button("✅ Yes, Clear", key="confirm_yes"):
+                if clear_history():
+                    st.session_state["confirm_clear"] = False
+                    st.success("✅ History cleared!")
+                    st.rerun()
+        with col_no:
+            if st.button("❌ Cancel", key="confirm_no"):
+                st.session_state["confirm_clear"] = False
                 st.rerun()
 
     history = load_history()
