@@ -488,6 +488,7 @@ with tab2:
         with col_b:
             role_offer_sel = st.selectbox("Designation", PRESET_ROLES, key="offer_role_sel")
 
+        rr_final = []  # default empty — only set if role is Other
         if role_offer_sel == "Other":
             role_offer_raw = st.text_input("Type Role Name", placeholder="e.g. Cloud Solutions Engineer", key="offer_role_other")
             role_offer = fix_role_name(role_offer_raw) if role_offer_raw.strip() else ""
